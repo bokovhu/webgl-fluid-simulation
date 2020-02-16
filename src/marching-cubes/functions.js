@@ -37,16 +37,14 @@ export function calculateCorners(x, y, z) {
 }
 
 export function calculateWorldCorners(corners, vsx, vsy, vsz) {
-    
     return [
-        [ corners [0][0] * vsx, corners [0][1] * vsy, corners [0][2] * vsz ],
-        [ corners [1][0] * vsx, corners [1][1] * vsy, corners [1][2] * vsz ],
-        [ corners [2][0] * vsx, corners [2][1] * vsy, corners [2][2] * vsz ],
-        [ corners [3][0] * vsx, corners [3][1] * vsy, corners [3][2] * vsz ],
-        [ corners [4][0] * vsx, corners [4][1] * vsy, corners [4][2] * vsz ],
-        [ corners [5][0] * vsx, corners [5][1] * vsy, corners [5][2] * vsz ],
-        [ corners [6][0] * vsx, corners [6][1] * vsy, corners [6][2] * vsz ],
-        [ corners [7][0] * vsx, corners [7][1] * vsy, corners [7][2] * vsz ]
-    ]
-
+        [ corners[0][0] * vsx, corners[0][1] * vsy, corners[0][2] * vsz ],
+        [ corners[1][0] * vsx, corners[1][1] * vsy, corners[1][2] * vsz ],
+        [ corners[2][0] * vsx, corners[2][1] * vsy, corners[2][2] * vsz ],
+        [ corners[3][0] * vsx, corners[3][1] * vsy, corners[3][2] * vsz ],
+        [ corners[4][0] * vsx, corners[4][1] * vsy, corners[4][2] * vsz ],
+        [ corners[5][0] * vsx, corners[5][1] * vsy, corners[5][2] * vsz ],
+        [ corners[6][0] * vsx, corners[6][1] * vsy, corners[6][2] * vsz ],
+        [ corners[7][0] * vsx, corners[7][1] * vsy, corners[7][2] * vsz ]
+    ];
 }

@@ -57,14 +57,14 @@ export default class Main {
             this.generateMarchingCubesResult();
         });
 
-        let cameraFolder = this.gui.addFolder ('Camera')
-        let cameraOrbitCenterFolder = cameraFolder.addFolder ('Orbit Center')
-        cameraOrbitCenterFolder.add (this.camera.orbitCenter, '0', -10, 10, 0.1)
-        cameraOrbitCenterFolder.add (this.camera.orbitCenter, '1', -10, 10, 0.1)
-        cameraOrbitCenterFolder.add (this.camera.orbitCenter, '2', -10, 10, 0.1)
-        cameraFolder.add (this.camera, 'orbitHeight', -25, 25, 0.1)
-        cameraFolder.add (this.camera, 'orbitSpeed', 0.05, 2.0, 0.01)
-        cameraFolder.add (this.camera, 'orbitRadius', 4.0, 50.0, 0.5)
+        let cameraFolder = this.gui.addFolder('Camera');
+        let cameraOrbitCenterFolder = cameraFolder.addFolder('Orbit Center');
+        cameraOrbitCenterFolder.add(this.camera.orbitCenter, '0', -10, 10, 0.1);
+        cameraOrbitCenterFolder.add(this.camera.orbitCenter, '1', -10, 10, 0.1);
+        cameraOrbitCenterFolder.add(this.camera.orbitCenter, '2', -10, 10, 0.1);
+        cameraFolder.add(this.camera, 'orbitHeight', -25, 25, 0.1);
+        cameraFolder.add(this.camera, 'orbitSpeed', 0.05, 2.0, 0.01);
+        cameraFolder.add(this.camera, 'orbitRadius', 4.0, 50.0, 0.5);
 
         this.stats = new Stats();
         this.stats.showPanel(0);

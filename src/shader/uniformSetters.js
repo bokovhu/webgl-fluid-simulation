@@ -1,5 +1,5 @@
-var WARN_ON_NON_EXISTING = false
-var WARN_ON_NOT_SUPPORTED = false
+var WARN_ON_NON_EXISTING = false;
+var WARN_ON_NOT_SUPPORTED = false;
 
 export class FloatUniformSetter {
     constructor(gl, uniformLocation) {

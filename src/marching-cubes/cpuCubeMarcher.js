@@ -53,18 +53,20 @@ export default class CPUCubeMarcher {
         let numTriangles = 0;
         let meshes = [];
 
-        let voxelSizeX = voxelSize [0]
-        let voxelSizeY = voxelSize [1]
-        let voxelSizeZ = voxelSize [2]
+        let voxelSizeX = voxelSize[0];
+        let voxelSizeY = voxelSize[1];
+        let voxelSizeZ = voxelSize[2];
         let vertices = [
             [ 0, 0, 0 ],
             [ 0, 0, 0 ],
             [ 0, 0, 0 ],
             [ 0, 0, 0 ],
             [ 0, 0, 0 ],
-            [ 0, 0, 0 ],[ 0, 0, 0 ],
             [ 0, 0, 0 ],
-            [ 0, 0, 0 ],[ 0, 0, 0 ],
+            [ 0, 0, 0 ],
+            [ 0, 0, 0 ],
+            [ 0, 0, 0 ],
+            [ 0, 0, 0 ],
             [ 0, 0, 0 ],
             [ 0, 0, 0 ]
         ];
@@ -72,7 +74,6 @@ export default class CPUCubeMarcher {
         for (let z = 0; z < zVoxelCount; z++) {
             for (let y = 0; y < yVoxelCount; y++) {
                 for (let x = 0; x < xVoxelCount; x++) {
-
                     // Calculate the index of the cube in the edge table
                     let cubeIndex = 0;
 

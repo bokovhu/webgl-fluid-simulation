@@ -29,13 +29,11 @@ export default class Mesh {
     }
 
     upload(vertices) {
-
-        let start = Date.now ()
+        let start = Date.now();
 
         this.vertexData = new Float32Array(6 * vertices.length);
 
         if (vertices.length > 0) {
-
             for (let vertexIndex = 0; vertexIndex < vertices.length; vertexIndex++) {
                 let vertex = vertices[vertexIndex];
                 let pos = vertex['position'] || [ vertex[0], vertex[1], vertex[2] ];
@@ -48,7 +46,6 @@ export default class Mesh {
                 this.vertexData[vertexIndex * 6 + 3] = norm[0];
                 this.vertexData[vertexIndex * 6 + 4] = norm[1];
                 this.vertexData[vertexIndex * 6 + 5] = norm[2];
-
             }
         }
 
@@ -57,9 +54,8 @@ export default class Mesh {
         this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.vbo);
         this.gl.bufferData(this.gl.ARRAY_BUFFER, this.vertexData, this.gl.STATIC_DRAW);
 
-        let end = Date.now ()
+        let end = Date.now();
         console.log(`Upload done, vertex count: ${this.vertexCount}, took ${end - start} ms`);
-
     }
 
     draw() {
