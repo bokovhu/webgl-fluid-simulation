@@ -49,14 +49,9 @@ export default class CPUCubeMarcher {
             [ 0, 0, 0 ]
         ];
 
-        let cubeIndexTotalTime = 0;
-        let edgeTotalTime = 0;
-        let vertexTotalTime = 0;
-
         for (let z = 0; z < zVoxelCount; z++) {
             for (let y = 0; y < yVoxelCount; y++) {
                 for (let x = 0; x < xVoxelCount; x++) {
-                    let cubeIndexStart = window.performance.now();
 
                     // Calculate the index of the cube in the edge table
                     let cubeIndex = 0;
@@ -78,10 +73,6 @@ export default class CPUCubeMarcher {
                     if (cubeIndex >= edgeTable.length) {
                         cubeIndex = edgeTable.length - 1;
                     }
-
-                    cubeIndexTotalTime += window.performance.now() - cubeIndexStart;
-
-                    let edgeStart = window.performance.now();
 
                     // No triangles to create
                     if (edgeTable[cubeIndex] == 0) continue;
@@ -206,10 +197,6 @@ export default class CPUCubeMarcher {
                         );
                     }
 
-                    edgeTotalTime += window.performance.now() - edgeStart;
-
-                    let vertexStart = window.performance.now();
-
                     for (let i = 0; triangleTable[cubeIndex][i] != -1; i += 3) {
                         let p1 = vertices[triangleTable[cubeIndex][i]];
                         let p2 = vertices[triangleTable[cubeIndex][i + 1]];
@@ -291,7 +278,6 @@ export default class CPUCubeMarcher {
                         }
                     }
 
-                    vertexTotalTime += window.performance.now() - vertexStart;
                 }
             }
         }
@@ -356,10 +342,6 @@ export default class CPUCubeMarcher {
 
         let model = new Model(this.gl);
         meshes.forEach((mesh) => model.meshes.push(mesh));
-
-        console.log(`Cube index total time: ${cubeIndexTotalTime} ms`);
-        console.log(`Edge total time: ${edgeTotalTime} ms`);
-        console.log(`Vertex total time: ${vertexTotalTime} ms`);
 
         return model;
     }
