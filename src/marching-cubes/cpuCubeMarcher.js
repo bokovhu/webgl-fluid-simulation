@@ -1,6 +1,6 @@
 import triangleTable from './triangleTable';
 import edgeTable from './edgeTable';
-import { vertexInterpolate, calculateCorners, calculateWorldCorners } from './functions';
+import { vertexInterpolate, calculateCorners } from './functions';
 import { vec3 } from 'gl-matrix';
 import Mesh from '../mesh/mesh';
 import Model from '../model/model';

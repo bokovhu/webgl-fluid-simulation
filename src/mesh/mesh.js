@@ -58,6 +58,13 @@ export default class Mesh {
         console.log(`Upload done, vertex count: ${this.vertexCount}, took ${end - start} ms`);
     }
 
+    uploadRaw(verticesBuffer, vertexCount) {
+        this.vertexCount = vertexCount;
+
+        this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.vbo);
+        this.gl.bufferData(this.gl.ARRAY_BUFFER, verticesBuffer, this.gl.STATIC_DRAW);
+    }
+
     draw() {
         this.gl.bindVertexArray(this.vao);
         this.gl.drawArrays(this.primitiveType, 0, this.vertexCount);

@@ -24,6 +24,14 @@ module.exports = {
                 use: 'raw-loader'
             },
             {
+                test: /\.wasm$/,
+                loader: 'file-loader',
+                type: 'javascript/auto',
+                options: {
+                    publicPath: 'dist/'
+                }
+            },
+            {
                 test: /\.js$/,
                 exclude: /(node_modules|bower_components)/,
                 use: {
@@ -51,5 +59,12 @@ module.exports = {
     devServer: {
         port: 4000,
         compress: true
+    },
+    target: 'web',
+    node: {
+        __dirname: false,
+        fs: 'empty',
+        Buffer: false,
+        process: false
     }
 };

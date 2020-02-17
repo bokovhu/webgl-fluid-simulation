@@ -3,9 +3,10 @@ import './main.css';
 import BlinnPhong from './shader/user/blinnPhongShader';
 import GameGUI from './gui/gui'
 import { mat4, vec2, vec3 } from 'gl-matrix';
-import Grid, { GridOptions } from './marching-cubes/grid'
-import CPUCubeMarcher from './marching-cubes/cpuCubeMarcher';
-import SimplexNoise from 'simplex-noise';
+import Grid from './marching-cubes/v2/grid'
+import JSMarcher from './marching-cubes/v2/jsMarcher'
+import Mesh from './mesh/mesh'
+import Model from './model/model';
 
 export default class Main {
     constructor() {}
@@ -32,62 +33,75 @@ export default class Main {
         this.gl.enable(this.gl.DEPTH_TEST);
     }
 
-    generateScalarFields() {
-        
-        this.grid.generateFields ()
-
-    }
-
-    generateModels() {
-        
-        this.grid.generateModels (this.program.program)
-        this.models = this.grid.models
-
-    }
-
     generateMarchingCubesResult() {
 
         let start = Date.now();
 
-        this.generateModels();
+        let sheetSize = this.grid.xSize * this.grid.ySize;
+        let rowSize = this.grid.xSize;
+
+        let model = this.models [0]
+        if (!model) {
+            model = new Model (this.gl)
+        }
+
+        let useOldMeshes = model.meshes.length > 0
+
+        for (let i = 0; i < this.grid.totalSize; i += this.marchStep) {
+
+            let z = Math.floor(i / sheetSize);
+            let y = Math.floor((i - z * sheetSize) / rowSize);
+            let x = Math.floor(i - (z * sheetSize + y * rowSize));
+
+            let numVertices = this.marcher.calculate (
+                this.vertexBuffer,
+                this.grid.field,
+                i, i + this.marchStep,
+                this.grid.xSize, this.grid.ySize, this.grid.zSize,
+                0, 0, 0,
+                this.grid.xScale, this.grid.yScale, this.grid.zScale,
+                this.isoLevel
+            )
+
+            let mesh = (model.meshes [Math.floor (i / this.marchStep)] || new Mesh (this.gl))
+            mesh.uploadRaw (this.vertexBuffer, numVertices)
+
+            if (!useOldMeshes) {
+                model.meshes.push (mesh)
+            }
+
+        }
+
+        if (!useOldMeshes) {
+            model.setup (this.program.program)
+            this.models = [ model ]
+        }
 
         let end = Date.now();
         console.log(`Finished marching cubes in ${end - start} ms`);
+
     }
 
     createMesh() {
-        this.gridOptions.chunkStartX = -2
-        this.gridOptions.chunkEndX = 2
-        this.gridOptions.chunkStartZ = -2
-        this.gridOptions.chunkEndZ = 2
-        this.gridOptions.voxelSizeX = 1.0 / 16.0
-        this.gridOptions.voxelSizeY = 1.0 / 16.0
-        this.gridOptions.voxelSizeZ = 1.0 / 16.0
-        this.grid = new Grid (
-            this.gl,
-            this.gridOptions
-        )
 
-        this.generateScalarFields();
+        this.grid = new Grid (32, 32, 32, 1.0 / 8.0, 1.0 / 8.0, 1.0 / 8.0)
+        this.grid.generate ()
+
+        this.marchStep = this.grid.totalSize / 16
+        this.vertexBuffer = new Float32Array (this.marchStep * 5 * 6)
+        
+        this.marcher = new JSMarcher (this.gl)
+
         this.generateMarchingCubesResult();
+
     }
 
     initProperties() {
         this.appTime = 0.0;
 
-        this.isoLevel = -0.4;
-
-        this.fieldSize = [ 32, 32, 32 ];
-        this.voxelSize = 1.0 / 8.0;
-        this.chunkStartX = 0;
-        this.chunkStartY = 0;
-        this.chunkStartZ = 0;
-        this.chunkEndX = 0;
-        this.chunkEndY = 0;
-        this.chunkEndZ = 0;
+        this.isoLevel = 36
 
         this.models = [];
-        this.fields = [];
 
         this.camera = {
             position: vec3.create(),
@@ -113,8 +127,6 @@ export default class Main {
             shininess: 32.0
         };
         
-        this.gridOptions = new GridOptions ()
-
         this.resolution = vec2.create();
     }
 
@@ -180,7 +192,7 @@ export default class Main {
         this.program.setLight(this.light);
         this.program.setMaterial(this.material);
 
-        // this.generateMarchingCubesResult ()
+        this.generateMarchingCubesResult ()
 
         this.models.forEach((model) => {
             this.program.setModel(model.modelMatrix);

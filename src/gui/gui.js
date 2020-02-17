@@ -49,7 +49,7 @@ export default class GameGUI {
         lightAmbientFolder.add(this.target.light.ambient, '2', 0.0, 1.0, 0.05);
 
         let marchingCubesFolder = this.gui.addFolder('Marching Cubes');
-        let isoLevelController = marchingCubesFolder.add(this.target.gridOptions, 'isoLevel', 0, 255, 1);
+        let isoLevelController = marchingCubesFolder.add(this.target, 'isoLevel', 0, 255, 1);
         isoLevelController.onFinishChange(() => {
             this.target.generateMarchingCubesResult();
         });
