@@ -94,17 +94,17 @@ export default class Main {
         for (let fieldZ = this.chunkStartZ; fieldZ <= this.chunkEndZ; fieldZ++) {
             for (let fieldY = this.chunkStartY; fieldY <= this.chunkEndY; fieldY++) {
                 for (let fieldX = this.chunkStartX; fieldX <= this.chunkEndX; fieldX++) {
-                    let scalarField = new Float32Array(this.fieldSize[0] * this.fieldSize[1] * this.fieldSize[2]);
+                    let scalarField = [];
 
                     for (let z = 0; z < this.fieldSize[2]; z++) {
                         for (let y = 0; y < this.fieldSize[1]; y++) {
                             for (let x = 0; x < this.fieldSize[0]; x++) {
-                                scalarField[
-                                    z * (this.fieldSize[1] * this.fieldSize[0]) + y * this.fieldSize[0] + x
-                                ] = this.simplex.noise3D(
-                                    fieldX * this.fieldSize[0] * this.voxelSize + x * this.voxelSize,
-                                    fieldY * this.fieldSize[1] * this.voxelSize + y * this.voxelSize,
-                                    fieldZ * this.fieldSize[2] * this.voxelSize + z * this.voxelSize
+                                scalarField.push(
+                                    this.simplex.noise3D(
+                                        fieldX * this.fieldSize[0] * this.voxelSize + x * this.voxelSize,
+                                        fieldY * this.fieldSize[1] * this.voxelSize + y * this.voxelSize,
+                                        fieldZ * this.fieldSize[2] * this.voxelSize + z * this.voxelSize
+                                    )
                                 );
                             }
                         }
@@ -138,13 +138,13 @@ export default class Main {
                         (fieldX + chunkXOffset);
                     console.log(`Generating model at chunk [${fieldX}, ${fieldY}, ${fieldZ}], index ${modelIndex}`);
 
-                    let model = this.cubeMarcher.createModel(
-                        this.fields[modelIndex],
-                        this.fieldSize,
-                        [ this.voxelSize, this.voxelSize, this.voxelSize ],
-                        this.isoLevel
-                    );
+                    let model = this.cubeMarcher.createModel(this.fields[modelIndex], this.fieldSize, this.isoLevel);
                     model.setup(this.program.program);
+                    mat4.scale(model.modelMatrix, model.modelMatrix, [
+                        this.voxelSize,
+                        this.voxelSize,
+                        this.voxelSize
+                    ]);
                     model.modelMatrix = mat4.translate(model.modelMatrix, model.modelMatrix, [
                         fieldX * this.voxelSize * (this.fieldSize[0] - 1),
                         fieldY * this.voxelSize * (this.fieldSize[1] - 1),
@@ -162,7 +162,6 @@ export default class Main {
     generateMarchingCubesResult() {
         let start = Date.now();
 
-        this.generateScalarFields();
         this.generateModels();
 
         let end = Date.now();
@@ -173,6 +172,7 @@ export default class Main {
         this.simplex = new SimplexNoise();
         this.cubeMarcher = new CPUCubeMarcher(this.gl);
 
+        this.generateScalarFields();
         this.generateMarchingCubesResult();
     }
 
@@ -183,12 +183,12 @@ export default class Main {
 
         this.fieldSize = [ 32, 32, 32 ];
         this.voxelSize = 1.0 / 8.0;
-        this.chunkStartX = -2;
-        this.chunkStartY = -2;
-        this.chunkStartZ = -2;
-        this.chunkEndX = 2;
-        this.chunkEndY = 2;
-        this.chunkEndZ = 2;
+        this.chunkStartX = 0;
+        this.chunkStartY = 0;
+        this.chunkStartZ = 0;
+        this.chunkEndX = 0;
+        this.chunkEndY = 0;
+        this.chunkEndZ = 0;
 
         this.models = [];
         this.fields = [];
@@ -281,6 +281,8 @@ export default class Main {
         this.program.setCamera(this.camera);
         this.program.setLight(this.light);
         this.program.setMaterial(this.material);
+
+        // this.generateMarchingCubesResult ()
 
         this.models.forEach((model) => {
             this.program.setModel(model.modelMatrix);
