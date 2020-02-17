@@ -22,7 +22,7 @@ export class SimplexNoiseFieldGenerator {
                 let row = []
                 for (let x = 0; x < width; x++) {
                     let value = this.simplex.noise3D (
-                        offset[0] + x * scale[0],
+                        offset [0] + x * scale[0],
                         offset [1] + y * scale [1],
                         offset [2] + z * scale [2]
                     )
@@ -96,9 +96,9 @@ export default class Grid {
                 for (let fieldX = this.options.chunkStartX; fieldX <= this.options.chunkEndX; fieldX++) {
 
                     let offset = [
-                        fieldX * this.options.fieldSizeX * this.options.voxelSizeX,
-                        fieldY * this.options.fieldSizeY * this.options.voxelSizeY,
-                        fieldZ * this.options.fieldSizeZ * this.options.voxelSizeZ
+                        fieldX * (this.options.fieldSizeX - 1) * this.options.voxelSizeX,
+                        fieldY * (this.options.fieldSizeY - 1) * this.options.voxelSizeY,
+                        fieldZ * (this.options.fieldSizeZ - 1) * this.options.voxelSizeZ
                     ]
 
                     fields.push (
@@ -142,16 +142,17 @@ export default class Grid {
 
                     let model = this.cubeMarcher.createModel(this.fields[modelIndex], fieldSize, this.options.isoLevel);
                     model.setup(program);
+
+                    mat4.translate(model.modelMatrix, model.modelMatrix, [
+                        fieldX * this.options.voxelSizeX * (this.options.fieldSizeX - 1),
+                        fieldY * this.options.voxelSizeY * (this.options.fieldSizeY - 1),
+                        fieldZ * this.options.voxelSizeZ * (this.options.fieldSizeZ - 1)
+                    ]);
+
                     mat4.scale(model.modelMatrix, model.modelMatrix, [
                         this.options.voxelSizeX,
                         this.options.voxelSizeY,
                         this.options.voxelSizeZ
-                    ]);
-
-                    model.modelMatrix = mat4.translate(model.modelMatrix, model.modelMatrix, [
-                        fieldX * this.options.voxelSizeX * (this.options.fieldSizeX - 1),
-                        fieldY * this.options.voxelSizeY * (this.options.fieldSizeY - 1),
-                        fieldZ * this.options.voxelSizeZ * (this.options.fieldSizeZ - 1)
                     ]);
 
                     models.push(model);

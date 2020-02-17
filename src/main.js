@@ -56,9 +56,16 @@ export default class Main {
     }
 
     createMesh() {
+        this.gridOptions.chunkStartX = -2
+        this.gridOptions.chunkEndX = 2
+        this.gridOptions.chunkStartZ = -2
+        this.gridOptions.chunkEndZ = 2
+        this.gridOptions.voxelSizeX = 1.0 / 16.0
+        this.gridOptions.voxelSizeY = 1.0 / 16.0
+        this.gridOptions.voxelSizeZ = 1.0 / 16.0
         this.grid = new Grid (
             this.gl,
-            new GridOptions ()
+            this.gridOptions
         )
 
         this.generateScalarFields();
@@ -105,6 +112,8 @@ export default class Main {
             specular: [ 0.5, 0.5, 0.5 ],
             shininess: 32.0
         };
+        
+        this.gridOptions = new GridOptions ()
 
         this.resolution = vec2.create();
     }
