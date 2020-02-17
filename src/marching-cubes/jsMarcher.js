@@ -1,5 +1,5 @@
-import triangleTable from '../triangleTable';
-import edgeTable from '../edgeTable';
+import triangleTable from './triangleTable';
+import edgeTable from './edgeTable';
 import { vec3 } from 'gl-matrix';
 
 function interp(v, ax, ay, az, bx, by, bz, v1, v2, level) {

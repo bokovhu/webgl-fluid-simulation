@@ -3,8 +3,11 @@ import { glMatrix } from 'gl-matrix';
 
 glMatrix.setMatrixArrayType(Array);
 
-let main = new Main();
-main.start();
+const FluidSimWasm = require('./src/wasm/fluidsim_wasm.js');
+FluidSimWasm().then((wasmModule) => {
+    let main = new Main(wasmModule);
+    main.start();
+});
 
 /*
 const WasmMarcherModule = require('./src/native/wasm_marcher.js');

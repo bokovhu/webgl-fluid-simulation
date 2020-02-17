@@ -3,13 +3,17 @@ import './main.css';
 import BlinnPhong from './shader/user/blinnPhongShader';
 import GameGUI from './gui/gui'
 import { mat4, vec2, vec3 } from 'gl-matrix';
-import Grid from './marching-cubes/v2/grid'
-import JSMarcher from './marching-cubes/v2/jsMarcher'
+import Grid from './marching-cubes/grid'
+import JSMarcher from './marching-cubes/jsMarcher'
+import WasmMarcher from './marching-cubes/wasmMarcher'
 import Mesh from './mesh/mesh'
 import Model from './model/model';
 
 export default class Main {
-    constructor() {}
+
+    constructor(wasmModule) {
+        this.wasmModule = wasmModule
+    }
 
     createGui() {
         this.gui = new GameGUI (this)
@@ -78,19 +82,26 @@ export default class Main {
         }
 
         let end = Date.now();
-        console.log(`Finished marching cubes in ${end - start} ms`);
+        // console.log(`Finished marching cubes in ${end - start} ms`);
 
     }
 
     createMesh() {
 
-        this.grid = new Grid (32, 32, 32, 1.0 / 8.0, 1.0 / 8.0, 1.0 / 8.0)
+        this.grid = new Grid (64, 64, 64, 1.0 / 8.0, 1.0 / 8.0, 1.0 / 8.0)
         this.grid.generate ()
 
         this.marchStep = this.grid.totalSize / 16
         this.vertexBuffer = new Float32Array (this.marchStep * 5 * 6)
         
-        this.marcher = new JSMarcher (this.gl)
+        // this.marcher = new JSMarcher (this.gl)
+        this.marcher = new WasmMarcher (this.gl, this.wasmModule)
+        if (this.marcher.prepare) {
+            this.marcher.prepare (
+                this.vertexBuffer,
+                this.grid.field
+            )
+        }
 
         this.generateMarchingCubesResult();
 
