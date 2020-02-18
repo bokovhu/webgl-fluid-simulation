@@ -1,3 +1,6 @@
+import {
+    LAYOUT_CONTINOUS_ARRAY
+} from './grid/memoryLayout'
 import triangleTable from './triangleTable';
 import edgeTable from './edgeTable';
 import { vec3 } from 'gl-matrix';
@@ -24,6 +27,8 @@ function interp(v, ax, ay, az, bx, by, bz, v1, v2, level) {
 export default class JSMarcher {
     constructor(gl) {
         this.gl = gl;
+        this.supports = {}
+        this.supports [LAYOUT_CONTINOUS_ARRAY] = this.calculate
     }
 
     /// Returns the number of vertices created

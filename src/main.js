@@ -8,6 +8,12 @@ import JSMarcher from './marching-cubes/jsMarcher'
 import WasmMarcher from './marching-cubes/wasmMarcher'
 import Mesh from './mesh/mesh'
 import Model from './model/model';
+import GPUMarcher from './marching-cubes/gpuMarcher';
+import MarchingCubes from './marching-cubes/marchingCubes';
+import Grid1D from './marching-cubes/grid/grid1D';
+import SimplexNoiseFieldGenerator from './marching-cubes/fieldgen/simplexNoise';
+import SphereFieldGenerator from './marching-cubes/fieldgen/sphere';
+import RandomFieldGenerator from './marching-cubes/fieldgen/random';
 
 export default class Main {
 
@@ -39,69 +45,26 @@ export default class Main {
 
     generateMarchingCubesResult() {
 
-        let start = Date.now();
-
-        let sheetSize = this.grid.xSize * this.grid.ySize;
-        let rowSize = this.grid.xSize;
-
-        let model = this.models [0]
-        if (!model) {
-            model = new Model (this.gl)
-        }
-
-        let useOldMeshes = model.meshes.length > 0
-
-        for (let i = 0; i < this.grid.totalSize; i += this.marchStep) {
-
-            let z = Math.floor(i / sheetSize);
-            let y = Math.floor((i - z * sheetSize) / rowSize);
-            let x = Math.floor(i - (z * sheetSize + y * rowSize));
-
-            let numVertices = this.marcher.calculate (
-                this.vertexBuffer,
-                this.grid.field,
-                i, i + this.marchStep,
-                this.grid.xSize, this.grid.ySize, this.grid.zSize,
-                0, 0, 0,
-                this.grid.xScale, this.grid.yScale, this.grid.zScale,
-                this.isoLevel
-            )
-
-            let mesh = (model.meshes [Math.floor (i / this.marchStep)] || new Mesh (this.gl))
-            mesh.uploadRaw (this.vertexBuffer, numVertices)
-
-            if (!useOldMeshes) {
-                model.meshes.push (mesh)
-            }
-
-        }
-
-        if (!useOldMeshes) {
-            model.setup (this.program.program)
-            this.models = [ model ]
-        }
-
-        let end = Date.now();
-        // console.log(`Finished marching cubes in ${end - start} ms`);
+        console.log ('Marching')
+        this.marchingCubes.march (this.program.program, this.isoLevel)
 
     }
 
     createMesh() {
 
-        this.grid = new Grid (64, 64, 64, 1.0 / 8.0, 1.0 / 8.0, 1.0 / 8.0)
-        this.grid.generate ()
-
-        this.marchStep = this.grid.totalSize / 16
-        this.vertexBuffer = new Float32Array (this.marchStep * 5 * 6)
-        
-        // this.marcher = new JSMarcher (this.gl)
-        this.marcher = new WasmMarcher (this.gl, this.wasmModule)
-        if (this.marcher.prepare) {
-            this.marcher.prepare (
-                this.vertexBuffer,
-                this.grid.field
-            )
-        }
+        this.marchingCubes = new MarchingCubes (
+            this.gl,
+            new Grid1D (
+                128, 128, 128,
+                1.0 / 8.0, 1.0 / 8.0, 1.0 / 8.0
+            ),
+            new RandomFieldGenerator (),
+            new WasmMarcher (this.gl, this.wasmModule),
+            {
+                debugMarch: true
+            }
+        )
+        this.marchingCubes.generate ()
 
         this.generateMarchingCubesResult();
 
@@ -203,11 +166,11 @@ export default class Main {
         this.program.setLight(this.light);
         this.program.setMaterial(this.material);
 
-        this.generateMarchingCubesResult ()
+        this.marchingCubes.render (
+            (model) => {
+                this.program.setModel (model.modelMatrix)
+            }
+        )
 
-        this.models.forEach((model) => {
-            this.program.setModel(model.modelMatrix);
-            model.draw();
-        });
     }
 }
