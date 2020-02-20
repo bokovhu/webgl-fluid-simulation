@@ -14,6 +14,7 @@ import Grid1D from './marching-cubes/grid/grid1D';
 import SimplexNoiseFieldGenerator from './marching-cubes/fieldgen/simplexNoise';
 import SphereFieldGenerator from './marching-cubes/fieldgen/sphere';
 import RandomFieldGenerator from './marching-cubes/fieldgen/random';
+import TerrainFieldGenerator from './marching-cubes/fieldgen/terrain';
 
 export default class Main {
 
@@ -58,7 +59,7 @@ export default class Main {
                 128, 128, 128,
                 1.0 / 8.0, 1.0 / 8.0, 1.0 / 8.0
             ),
-            new RandomFieldGenerator (),
+            new TerrainFieldGenerator (),
             new WasmMarcher (this.gl, this.wasmModule),
             {
                 debugMarch: true
