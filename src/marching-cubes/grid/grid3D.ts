@@ -1,14 +1,24 @@
 import { LAYOUT_3D_ARRAY } from './memoryLayout'
+import Grid from './grid';
+import FieldGenerator from '../fieldgen/fieldGenerator';
 
-export default class Grid3D {
+export default class Grid3D implements Grid {
 
-    constructor (xSize, ySize, zSize, xScale, yScale, zScale) {
-        this.xSize = xSize;
-        this.ySize = ySize;
-        this.zSize = zSize;
-        this.xScale = xScale;
-        this.yScale = yScale;
-        this.zScale = zScale;
+    public totalSize: number;
+    public sheetSize: number;
+    public rowSize: number;
+    public field: Float32Array[][] = [];
+    public useIntegers: boolean = true;
+    public memoryLayout: string = LAYOUT_3D_ARRAY;
+
+    constructor(
+        public xSize: number,
+        public ySize: number,
+        public zSize: number,
+        public xScale: number,
+        public yScale: number,
+        public zScale: number
+    ) {
         this.sheetSize = this.xSize * this.zSize
         this.rowSize = this.xSize
         this.field = []
@@ -19,12 +29,9 @@ export default class Grid3D {
             }
             this.field.push (row)
         }
-
-        this.useIntegers = true
-        this.memoryLayout = LAYOUT_3D_ARRAY
     }
 
-    generate (generator) {
+    generate (generator: FieldGenerator): void {
 
         for (let z = 0; z < this.zSize; z++) {
             for (let y = 0; y < this.ySize; y++) {

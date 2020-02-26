@@ -1,23 +1,23 @@
 export class GenericShader {
-    constructor(gl, type) {
-        this.gl = gl;
-        this.type = type;
-        this.compiled = false;
-        this.deleted = false;
-        this.source = '';
+    private isCompiled: boolean = false;
+    private isDeleted: boolean = false;
+    private source: string = '';
+    public handle: WebGLShader = null;
+
+    constructor(private gl: WebGL2RenderingContext, private type: GLenum) {
         this.handle = gl.createShader(type);
     }
 
-    attachSource(source) {
+    attachSource(source: string): void {
         this.source = source;
         this.gl.shaderSource(this.handle, source);
     }
-    compile() {
-        if (this.compiled) {
+    compile(): void {
+        if (this.isCompiled) {
             throw new Error('Shader is already compiled!');
         }
 
-        if (this.deleted) {
+        if (this.isDeleted) {
             throw new Error('Cannot compile shader, as it was deleted!');
         }
 
@@ -26,17 +26,25 @@ export class GenericShader {
         let compileStatus = this.gl.getShaderParameter(this.handle, this.gl.COMPILE_STATUS);
 
         if (compileStatus) {
-            this.compiled = true;
+            this.isCompiled = true;
         } else {
-            this.compiled = false;
+            this.isCompiled = false;
             console.log(`Could not compile shader! Info log: ${this.getInfoLog()}`);
         }
     }
-    getInfoLog() {
+    getInfoLog(): string {
         return this.gl.getShaderInfoLog(this.handle);
     }
-    delete() {
+    delete(): void {
         this.gl.deleteShader(this.handle);
-        this.deleted = true;
+        this.isDeleted = true;
+    }
+
+    get compiled(): boolean {
+        return this.isCompiled;
+    }
+
+    get deleted(): boolean {
+        return this.isDeleted;
     }
 }

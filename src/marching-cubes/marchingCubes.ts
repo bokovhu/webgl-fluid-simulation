@@ -1,32 +1,56 @@
 import { LAYOUT_CONTINOUS_ARRAY, LAYOUT_ARRAY_OF_SHEETS, LAYOUT_3D_ARRAY } from './grid/memoryLayout';
-import Model from '../model/model';
-import Mesh from '../mesh/mesh';
+import Model from '../rendering/model';
+import Mesh from '../rendering/mesh';
+import FieldGenerator from './fieldgen/fieldGenerator';
+import Marcher from './marcher';
+import { ShaderProgram } from '../rendering/shader/shaderProgram';
+import { vec3 } from 'gl-matrix';
+import Grid from './grid/grid';
+
+export interface MarchingCubesOptions {
+    debugGenerate?: boolean;
+    marchStep?: number;
+    debugMarch?: boolean;
+    debugRender?: boolean;
+}
 
 export default class MarchingCubes {
-    constructor(gl, grid, fieldGenerator, marcher, options) {
-        this.gl = gl;
-        this.grid = grid;
-        this.fieldGenerator = fieldGenerator;
-        this.marcher = marcher;
-        this.options = options || {};
-    }
+    private model: Model = null;
+    private vertexBuffer: Float32Array = null;
+    private center: vec3 = vec3.create();
+
+    constructor(
+        private gl: WebGL2RenderingContext,
+        public grid: Grid,
+        private fieldGenerator: FieldGenerator,
+        private marcher: Marcher,
+        public options: MarchingCubesOptions
+    ) {}
 
     generate() {
         let start = window.performance.now();
         this.grid.generate(this.fieldGenerator);
         let end = window.performance.now();
 
+        vec3.set(
+            this.center,
+            this.grid.xSize / 2.0 * this.grid.xScale,
+            this.grid.ySize / 2.0 * this.grid.yScale,
+            this.grid.zSize / 2.0 * this.grid.zScale
+        );
+
         if (this.options.debugGenerate) {
             console.log(`Generating the scalar field took ${end - start} ms`);
         }
     }
 
-    march(shaderProgram, isoLevel) {
-        if (!this.marcher.supports[this.grid.memoryLayout]) {
-            throw new Error('The current cube marcher does not support the memory layout of the grid!');
-        }
+    march(shaderProgram: ShaderProgram, isoLevel: number) {
         if (this.marcher.skipMarch) {
             return;
+        }
+
+        if (!this.marcher.supports[this.grid.memoryLayout]) {
+            throw new Error('The current cube marcher does not support the memory layout of the grid!');
         }
 
         let start = window.performance.now();
@@ -47,11 +71,14 @@ export default class MarchingCubes {
 
                 if (!this.vertexBuffer) {
                     this.vertexBuffer = new Float32Array(marchStep * 5 * 3 * 6);
+                    let numMaxVertices = marchStep * 5 * 3;
                     if (this.marcher.prepare) {
                         this.marcher.prepare({
                             outVertices: this.vertexBuffer,
                             field: this.grid.field,
-                            fieldSize: [ this.grid.xSize, this.grid.ySize, this.grid.zSize ]
+                            fieldSize: [ this.grid.xSize, this.grid.ySize, this.grid.zSize ],
+                            numMaxVertices: numMaxVertices,
+                            grid: this.grid
                         });
                     }
                 }
@@ -105,11 +132,11 @@ export default class MarchingCubes {
         }
     }
 
-    render(preRender) {
+    render(preRender: (model: Model) => void, beforeCustomRender: () => void) {
         let start = window.performance.now();
 
         if (this.marcher.customRender) {
-            this.marcher.render(this);
+            this.marcher.render(this, beforeCustomRender);
         } else {
             if (preRender) {
                 preRender(this.model);
@@ -122,5 +149,9 @@ export default class MarchingCubes {
         if (this.options.debugRender) {
             console.log(`Rendering took ${end - start} ms`);
         }
+    }
+
+    get centerPoint(): vec3 {
+        return this.center;
     }
 }

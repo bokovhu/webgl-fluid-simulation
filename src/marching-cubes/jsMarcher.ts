@@ -1,11 +1,22 @@
-import {
-    LAYOUT_CONTINOUS_ARRAY
-} from './grid/memoryLayout'
+import { LAYOUT_CONTINOUS_ARRAY } from './grid/memoryLayout';
 import triangleTable from './triangleTable';
 import edgeTable from './edgeTable';
 import { vec3 } from 'gl-matrix';
+import Marcher, { MarcherSupportsType, MarchIndexType } from './marcher';
+import { FieldType } from './grid/grid';
 
-function interp(v, ax, ay, az, bx, by, bz, v1, v2, level) {
+function interp(
+    v: [number, number, number],
+    ax: number,
+    ay: number,
+    az: number,
+    bx: number,
+    by: number,
+    bz: number,
+    v1: number,
+    v2: number,
+    level: number
+) {
     if (Math.abs(level - v1) < 0.01 || Math.abs(v1 - v2) < 0.01) {
         v[0] = ax;
         v[1] = ay;
@@ -24,42 +35,42 @@ function interp(v, ax, ay, az, bx, by, bz, v1, v2, level) {
     v[2] = az + (bz - az) * alpha;
 }
 
-export default class JSMarcher {
-    constructor(gl) {
-        this.gl = gl;
-        this.supports = {}
-        this.supports [LAYOUT_CONTINOUS_ARRAY] = this.calculate
+export default class JSMarcher implements Marcher {
+    public supports: MarcherSupportsType = {};
+
+    constructor(private gl: WebGL2RenderingContext) {
+        this.supports[LAYOUT_CONTINOUS_ARRAY] = this.calculate;
     }
 
     /// Returns the number of vertices created
     calculate(
         /// The function places the generated vertices inside this array
-        outVertices,
+        outVertices: Float32Array,
         /// The scalar field to process
-        field,
+        inputField: FieldType,
         /// The starting (inclusive) and ending (exclusive) index of the cube marching
-        fromIndex,
-        toIndex,
+        fromIndex: MarchIndexType,
+        toIndex: MarchIndexType,
         /// The size of the field in the X, Y and Z directions
-        fieldSizeX,
-        fieldSizeY,
-        fieldSizeZ,
+        fieldSizeX: number,
+        fieldSizeY: number,
+        fieldSizeZ: number,
         /// The X, Y and Z offset to apply to all generated vertices
-        vertexOffsetX,
-        vertexOffsetY,
-        vertexOffsetZ,
+        vertexOffsetX: number,
+        vertexOffsetY: number,
+        vertexOffsetZ: number,
         /// The X, Y and Z scale to apply to all generated vertices
-        scaleX,
-        scaleY,
-        scaleZ,
+        scaleX: number,
+        scaleY: number,
+        scaleZ: number,
         /// The level of the isosurface, below which a point is considered to be inside the volume
-        isoLevel
+        isoLevel: number
     ) {
         let sheetSize = fieldSizeX * fieldSizeY;
         let rowSize = fieldSizeX;
         let numVertices = 0;
 
-        let vertices = [];
+        let vertices: [number, number, number][] = [];
         for (let i = 0; i < 12; i++) {
             vertices[i] = [ 0.0, 0.0, 0.0 ];
         }
@@ -71,7 +82,12 @@ export default class JSMarcher {
         let p3 = vec3.create();
         let normal = vec3.create();
 
-        for (let index = fromIndex; index < toIndex; index++) {
+        let iterateFrom = fromIndex as number;
+        let iterateTo = toIndex as number;
+
+        let field = inputField as number[];
+
+        for (let index = iterateFrom; index < iterateTo; index++) {
             // index = (z * sheetSize) + (y * rowSize) + x
 
             let z = Math.floor(index / sheetSize);

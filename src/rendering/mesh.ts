@@ -1,5 +1,24 @@
+import { ShaderProgram } from './shader/shaderProgram';
+import { vec3 } from 'gl-matrix';
+
+var CALCULATE_MESH_CENTER = false;
+
+interface Vertex {
+    position: [number, number, number];
+    normal: [number, number, number];
+}
+
+type VertexOrNumberArray = Array<Vertex | number>;
+
 export default class Mesh {
-    constructor(gl) {
+    private vao: WebGLVertexArrayObject;
+    private vbo: WebGLBuffer;
+    private primitiveType: GLenum;
+    private vertexCount: number;
+    private vertexData: Float32Array;
+    public center: vec3 = vec3.create();
+
+    constructor(private gl: WebGL2RenderingContext) {
         this.gl = gl;
         this.vao = gl.createVertexArray();
         this.vbo = gl.createBuffer();
@@ -8,7 +27,7 @@ export default class Mesh {
         this.vertexData = new Float32Array();
     }
 
-    setup(shaderProgram) {
+    setup(shaderProgram: ShaderProgram) {
         this.gl.bindVertexArray(this.vao);
         this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.vbo);
 
@@ -28,16 +47,21 @@ export default class Mesh {
         this.gl.bindVertexArray(null);
     }
 
-    upload(vertices) {
+    upload(vertices: Vertex[] | number[][]) {
         let start = Date.now();
 
         this.vertexData = new Float32Array(6 * vertices.length);
 
+        let avgX = 0.0;
+        let avgY = 0.0;
+        let avgZ = 0.0;
+
         if (vertices.length > 0) {
             for (let vertexIndex = 0; vertexIndex < vertices.length; vertexIndex++) {
                 let vertex = vertices[vertexIndex];
-                let pos = vertex['position'] || [ vertex[0], vertex[1], vertex[2] ];
-                let norm = vertex['normal'] || [ vertex[3], vertex[4], vertex[5] ];
+
+                let pos = 'position' in vertex ? vertex['position'] : [ vertex[0], vertex[1], vertex[2] ];
+                let norm = 'normal' in vertex ? vertex['normal'] : [ vertex[3], vertex[4], vertex[5] ];
 
                 this.vertexData[vertexIndex * 6 + 0] = pos[0];
                 this.vertexData[vertexIndex * 6 + 1] = pos[1];
@@ -46,10 +70,24 @@ export default class Mesh {
                 this.vertexData[vertexIndex * 6 + 3] = norm[0];
                 this.vertexData[vertexIndex * 6 + 4] = norm[1];
                 this.vertexData[vertexIndex * 6 + 5] = norm[2];
+
+                if (CALCULATE_MESH_CENTER) {
+                    avgX += pos[0];
+                    avgY += pos[1];
+                    avgZ += pos[2];
+                }
             }
         }
 
         this.vertexCount = vertices.length;
+
+        if (CALCULATE_MESH_CENTER) {
+            avgX /= this.vertexCount;
+            avgY /= this.vertexCount;
+            avgZ /= this.vertexCount;
+
+            vec3.set(this.center, avgX, avgY, avgZ);
+        }
 
         this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.vbo);
         this.gl.bufferData(this.gl.ARRAY_BUFFER, this.vertexData, this.gl.STATIC_DRAW);
@@ -58,11 +96,25 @@ export default class Mesh {
         console.log(`Upload done, vertex count: ${this.vertexCount}, took ${end - start} ms`);
     }
 
-    uploadRaw(verticesBuffer, vertexCount) {
+    uploadRaw(verticesBuffer: Float32Array, vertexCount: number) {
         this.vertexCount = vertexCount;
 
         this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.vbo);
         this.gl.bufferData(this.gl.ARRAY_BUFFER, verticesBuffer, this.gl.STATIC_DRAW);
+
+        if (CALCULATE_MESH_CENTER) {
+            let avgX =
+                verticesBuffer.filter((_, idx) => idx % 6 == 0).reduce((total, current) => total + current) /
+                vertexCount;
+            let avgY =
+                verticesBuffer.filter((_, idx) => idx % 6 == 1).reduce((total, current) => total + current) /
+                vertexCount;
+            let avgZ =
+                verticesBuffer.filter((_, idx) => idx % 6 == 2).reduce((total, current) => total + current) /
+                vertexCount;
+
+            vec3.set(this.center, avgX, avgY, avgZ);
+        }
     }
 
     draw() {
@@ -71,7 +123,12 @@ export default class Mesh {
     }
 }
 
-export function makeBox(gl, shaderProgram, dims, offset) {
+export function makeBox(
+    gl: WebGL2RenderingContext,
+    shaderProgram: ShaderProgram,
+    dims: [number, number, number],
+    offset: [number, number, number]
+) {
     let x = offset;
     let s = dims;
     s[0] /= 2.0;

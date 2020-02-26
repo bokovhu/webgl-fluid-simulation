@@ -1,13 +1,12 @@
 import './main.css';
 
-import BlinnPhong from './shader/user/blinnPhongShader';
-import GameGUI from './gui/gui'
+import BlinnPhong from './rendering/shader/blinnPhongShader';
+import GameGUI from './gui/gui';
 import { mat4, vec2, vec3 } from 'gl-matrix';
-import Grid from './marching-cubes/grid'
-import JSMarcher from './marching-cubes/jsMarcher'
-import WasmMarcher from './marching-cubes/wasmMarcher'
-import Mesh from './mesh/mesh'
-import Model from './model/model';
+import JSMarcher from './marching-cubes/jsMarcher';
+import WasmMarcher from './marching-cubes/wasmMarcher';
+import Mesh from './rendering/mesh';
+import Model from './rendering/model';
 import GPUMarcher from './marching-cubes/gpuMarcher';
 import MarchingCubes from './marching-cubes/marchingCubes';
 import Grid1D from './marching-cubes/grid/grid1D';
@@ -15,20 +14,40 @@ import SimplexNoiseFieldGenerator from './marching-cubes/fieldgen/simplexNoise';
 import SphereFieldGenerator from './marching-cubes/fieldgen/sphere';
 import RandomFieldGenerator from './marching-cubes/fieldgen/random';
 import TerrainFieldGenerator from './marching-cubes/fieldgen/terrain';
+import TransformFeedbackMarcher from './marching-cubes/transformFeedbackMarcher';
 
 export default class Main {
+    private wasmModule: any;
+    private gui: GameGUI;
+    private canvas: HTMLCanvasElement;
+    private gl: WebGL2RenderingContext;
+    private program: BlinnPhong;
+    private marchingCubes: MarchingCubes;
+    private isoLevel: number;
+    private appTime: number;
+    private camera: any;
+    private light: any;
+    private material: any;
+    private resolution: vec2;
+    private lastFrameTimestamp: number;
+    private width: number;
+    private height: number;
+    private aspectRatio: number;
+    private delta: number;
+    private gpuMarcher: GPUMarcher;
+    private modelMatrix: mat4 = mat4.create();
 
-    constructor(wasmModule) {
-        this.wasmModule = wasmModule
+    constructor(wasmModule: any) {
+        this.wasmModule = wasmModule;
     }
 
     createGui() {
-        this.gui = new GameGUI (this)
-        this.gui.init ()
+        this.gui = new GameGUI(this);
+        this.gui.init();
     }
 
     createWebGLContext() {
-        this.canvas = document.getElementById('canvas');
+        this.canvas = document.getElementById('canvas') as HTMLCanvasElement;
         this.gl = this.canvas.getContext('webgl2');
         if (this.gl == null) {
             throw new Error('Could not get WebGL 2 rendering context!');
@@ -36,47 +55,47 @@ export default class Main {
     }
 
     initGLObjects() {
+        this.gl.getExtension('EXT_color_buffer_float');
+
         this.program = new BlinnPhong(this.gl);
 
         this.createMesh();
 
-        this.gl.cullFace(this.gl.FRONT);
+        this.gl.cullFace(this.gl.FRONT_AND_BACK);
         this.gl.enable(this.gl.DEPTH_TEST);
+        
     }
 
     generateMarchingCubesResult() {
-
-        console.log ('Marching')
-        this.marchingCubes.march (this.program.program, this.isoLevel)
-
+        console.log('Marching');
+        // this.marchingCubes.march(this.program.program, this.isoLevel);
     }
 
     createMesh() {
-
-        this.marchingCubes = new MarchingCubes (
+        this.marchingCubes = new MarchingCubes(
             this.gl,
-            new Grid1D (
-                128, 128, 128,
-                1.0 / 8.0, 1.0 / 8.0, 1.0 / 8.0
-            ),
-            new TerrainFieldGenerator (),
-            new WasmMarcher (this.gl, this.wasmModule),
+            new Grid1D(128, 128, 128, 1.0 / 12.0, 1.0 / 12.0, 1.0 / 12.0),
+            // new TerrainFieldGenerator(),
+            new SimplexNoiseFieldGenerator(),
+            // new SphereFieldGenerator (),
+            new WasmMarcher(this.gl, this.wasmModule),
+            // new TransformFeedbackMarcher(this.gl),
             {
                 debugMarch: true
             }
-        )
-        this.marchingCubes.generate ()
+        );
+        this.marchingCubes.generate();
+
+        this.gpuMarcher = new GPUMarcher(this.gl);
+        this.gpuMarcher.setup(this.marchingCubes.grid);
 
         this.generateMarchingCubesResult();
-
     }
 
     initProperties() {
         this.appTime = 0.0;
 
-        this.isoLevel = 36
-
-        this.models = [];
+        this.isoLevel = 128;
 
         this.camera = {
             position: vec3.create(),
@@ -101,7 +120,7 @@ export default class Main {
             specular: [ 0.5, 0.5, 0.5 ],
             shininess: 32.0
         };
-        
+
         this.resolution = vec2.create();
     }
 
@@ -153,25 +172,54 @@ export default class Main {
         this.gl.clearColor(0, 0, 0, 1);
         this.gl.clear(this.gl.COLOR_BUFFER_BIT | this.gl.DEPTH_BUFFER_BIT);
 
+        // this.generateMarchingCubesResult();
+
         vec3.set(
             this.camera.position,
-            Math.cos(this.appTime * this.camera.orbitSpeed) * this.camera.orbitRadius,
+            this.marchingCubes.centerPoint[0],
             this.camera.orbitHeight,
-            Math.sin(this.appTime * this.camera.orbitSpeed) * this.camera.orbitRadius
+            this.marchingCubes.centerPoint[2]
         );
+        vec3.add(this.camera.position, this.camera.position, [
+            Math.cos(this.appTime * this.camera.orbitSpeed) * this.camera.orbitRadius,
+            0.0,
+            Math.sin(this.appTime * this.camera.orbitSpeed) * this.camera.orbitRadius
+        ]);
 
-        mat4.lookAt(this.camera.view, this.camera.position, this.camera.orbitCenter, [ 0, 1, 0 ]);
+        mat4.lookAt(this.camera.view, this.camera.position, this.marchingCubes.centerPoint, [ 0, 1, 0 ]);
+        mat4.identity(this.modelMatrix);
 
+        /*
         this.program.use();
         this.program.setCamera(this.camera);
         this.program.setLight(this.light);
         this.program.setMaterial(this.material);
+        */
 
-        this.marchingCubes.render (
-            (model) => {
-                this.program.setModel (model.modelMatrix)
+        this.gpuMarcher.draw(
+            (bp) => {
+                bp.setCamera(this.camera);
+                bp.setLight(this.light);
+                bp.setMaterial(this.material);
+                bp.setModel(this.modelMatrix);
+            },
+            this.marchingCubes.grid,
+            [ this.resolution[0], this.resolution[1] ],
+            this.isoLevel
+        );
+
+        /*
+        this.marchingCubes.render(
+            (model: any) => {
+                this.program.setModel(model.modelMatrix);
+            },
+            () => {
+                this.program.use();
+                this.program.setCamera(this.camera);
+                this.program.setLight(this.light);
+                this.program.setMaterial(this.material);
             }
-        )
-
+        );
+        */
     }
 }

@@ -46,6 +46,7 @@ void main () {
 
     out_color = vec4 (
         ambient + diffuse * diffuseContribution + specular * specularContribution,
+        // 1.0, 0.0, 0.0,
         1.0
     );
     

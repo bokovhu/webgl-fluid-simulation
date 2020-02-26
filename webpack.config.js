@@ -20,8 +20,8 @@ module.exports = {
                 use: [ 'file-loader' ]
             },
             {
-                test: /\.(glsl|vertex|fragment|txt)$/,
-                use: 'raw-loader'
+                test: /\.(glsl|vertex|fragment|vs|fs)$/,
+                use: 'ts-shader-loader'
             },
             {
                 test: /\.wasm$/,
@@ -40,6 +40,11 @@ module.exports = {
                         presets: [ '@babel/preset-env' ]
                     }
                 }
+            },
+            {
+                test: /\.tsx?$/,
+                use: 'ts-loader',
+                exclude: /node_modules/
             }
         ]
     },

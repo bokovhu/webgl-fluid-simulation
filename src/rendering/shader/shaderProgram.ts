@@ -15,54 +15,57 @@ import {
 
 import { GenericShader } from './genericShader';
 
+type UniformSettersMapType = { [key: string]: UniformSetter };
+type UniformLocationsMapType = { [key: string]: WebGLUniformLocation };
+type UniformInformationMapType = { [key: string]: WebGLActiveInfo };
+type AttributeLocationsMapType = { [key: string]: number };
+type AttributeInformationMapType = { [key: string]: WebGLActiveInfo };
+
 export class ShaderProgram {
-    constructor(gl) {
-        this.gl = gl;
-        this.shaders = [];
-        this.linked = false;
-        this.validated = false;
-        this.uniformSetters = {};
-        this.uniformLocations = {};
-        this.uniformInformation = {};
-        this.attributeLocations = {};
-        this.attributeInformation = {};
-        this.infoFetched = false;
+    private shaders: GenericShader[] = [];
+    private isLinked: boolean = false;
+    private isValidated: boolean = false;
+    private uniformSetters: UniformSettersMapType = {};
+    private uniformInformation: UniformInformationMapType = {};
+    private uniformLocations: UniformLocationsMapType = {};
+    private attributeLocations: AttributeLocationsMapType = {};
+    private attributeInformation: AttributeInformationMapType = {};
+    private infoFetched: boolean = false;
+    private handle: WebGLProgram = null;
+
+    constructor(private gl: WebGL2RenderingContext) {
         this.handle = gl.createProgram();
     }
 
-    getUniformLocation(name) {
+    getUniformLocation(name: string): WebGLUniformLocation {
         return this.uniformLocations[name];
     }
-    setUniform(name, value) {
+    setUniform(name: string, value: any): void {
         if (!this.uniformSetters[name]) {
             this.uniformSetters[name] = new NonExistingUniformSetter(name);
         }
         this.uniformSetters[name].apply(value);
     }
-    getUniforms() {
-        let result = [];
-        Object.keys(this.uniformInformation).forEach((key) => result.push(this.uniformInformation[key]));
-        return result;
+    getUniforms(): WebGLActiveInfo[] {
+        return Object.keys(this.uniformInformation).map((key) => this.uniformInformation[key]);
     }
-    getUniformInfo(name) {
+    getUniformInfo(name: string): WebGLActiveInfo {
         return this.uniformInformation[name];
     }
-    getAttributeLocation(name) {
+    getAttributeLocation(name: string): GLint {
         if (this.attributeLocations.hasOwnProperty(name)) {
             return this.attributeLocations[name];
         }
         return -1;
     }
-    getAttributeInfo(name) {
+    getAttributeInfo(name: string): WebGLActiveInfo {
         return this.attributeInformation[name];
     }
-    getAttributes() {
-        let result = [];
-        Object.keys(this.attributeInformation).forEach((key) => result.push(this.attributeInformation[key]));
-        return result;
+    getAttributes(): WebGLActiveInfo[] {
+        return Object.keys(this.attributeInformation).map((key) => this.attributeInformation[key]);
     }
 
-    attachShader(shader) {
+    attachShader(shader: GenericShader) {
         if (!shader.compiled) {
             throw new Error('Shader must be compiled before attaching it to a program!');
         }
@@ -72,42 +75,42 @@ export class ShaderProgram {
         this.gl.attachShader(this.handle, shader.handle);
         this.shaders.push(shader);
     }
-    link() {
-        if (this.linked) {
+    link(): void {
+        if (this.isLinked) {
             throw new Error('Program is already linked!');
         }
 
         this.gl.linkProgram(this.handle);
         let linkStatus = this.gl.getProgramParameter(this.handle, this.gl.LINK_STATUS);
         if (linkStatus) {
-            this.linked = true;
+            this.isLinked = true;
         } else {
-            this.linked = false;
+            this.isLinked = false;
             console.log(`Could not link a shader program! Info log: ${this.getInfoLog()}`);
         }
     }
-    validate() {
-        if (this.validated) {
+    validate(): void {
+        if (this.isValidated) {
             throw new Error('Program is already validated!');
         }
 
         this.gl.validateProgram(this.handle);
         let validateStatus = this.gl.getProgramParameter(this.handle, this.gl.VALIDATE_STATUS);
         if (validateStatus) {
-            this.validated = true;
+            this.isValidated = true;
         } else {
-            this.validated = false;
+            this.isValidated = false;
             console.log(`Could not validate a shader program! Info log: ${this.getInfoLog()}`);
         }
     }
-    deleteShaders() {
+    deleteShaders(): void {
         this.shaders.forEach((shader) => shader.delete());
     }
-    getInfoLog() {
+    getInfoLog(): string {
         return this.gl.getProgramInfoLog(this.handle);
     }
 
-    createUniformSetterForUniform(info, location) {
+    createUniformSetterForUniform(info: WebGLActiveInfo, location: WebGLUniformLocation) {
         switch (info.type) {
             case this.gl.FLOAT:
                 return new FloatUniformSetter(this.gl, location);
@@ -150,8 +153,25 @@ export class ShaderProgram {
             this.uniformInformation[uniformInfo.name] = uniformInfo;
             this.uniformLocations[uniformInfo.name] = uniformLocation;
 
-            let setter = this.createUniformSetterForUniform(uniformInfo, uniformLocation);
-            this.uniformSetters[uniformInfo.name] = setter;
+            if (uniformInfo.size > 1) {
+                for (let arrayIndex = 0; arrayIndex < uniformInfo.size; arrayIndex++) {
+                    let uniformName = uniformInfo.name.replace( /\[0\]/, `[${arrayIndex}]` )
+                    let arrayElementLocation = this.gl.getUniformLocation (
+                        this.handle,
+                        uniformName
+                    )
+                    console.log(`Location of ${uniformName} ==> ${arrayElementLocation}`)
+                    this.uniformSetters [uniformName] = this.createUniformSetterForUniform (
+                        uniformInfo,
+                        arrayElementLocation
+                    )
+                }
+            } else {
+
+                let setter = this.createUniformSetterForUniform(uniformInfo, uniformLocation);
+                this.uniformSetters[uniformInfo.name] = setter;
+
+            }
         }
 
         let numAttribs = this.gl.getProgramParameter(this.handle, this.gl.ACTIVE_ATTRIBUTES);
@@ -165,11 +185,11 @@ export class ShaderProgram {
     }
 
     use() {
-        if (!this.linked) {
+        if (!this.isLinked) {
             throw new Error('Cannot use a shader program before it has been linked!');
         }
 
-        if (!this.validated) {
+        if (!this.isValidated) {
             throw new Error('Cannot use a shader program before it has been validated!');
         }
 
@@ -177,5 +197,17 @@ export class ShaderProgram {
         if (!this.infoFetched) {
             this.fetchInfo();
         }
+    }
+
+    get linked(): boolean {
+        return this.isLinked;
+    }
+
+    get validated(): boolean {
+        return this.isValidated;
+    }
+
+    transformFeedbackVaryings(varyings: string[], format: GLenum) {
+        this.gl.transformFeedbackVaryings(this.handle, varyings, format);
     }
 }
