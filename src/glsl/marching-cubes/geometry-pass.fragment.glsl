@@ -110,6 +110,16 @@ void main () {
         cubeIndex = cubeIndex | 128;
     }
 
+    if (cubeIndex == 0 || cubeIndex == 255) {
+        discard;
+    }
+
+    int edge = texelFetch (u_edgeTable, ivec2(cubeIndex, 0), 0).x;
+
+    if (edge == 0) {
+        discard;
+    }
+
     int triangleVertex1Index = texelFetch(u_triangleTable, ivec2(triangleIndex, cubeIndex), 0).x;
 
     if (triangleVertex1Index < 0) {
@@ -120,8 +130,6 @@ void main () {
     int triangleVertex3Index = texelFetch(u_triangleTable, ivec2(triangleIndex + 2, cubeIndex), 0).x;
 
     // triangleVertex1Index == 0 ==> vertices[0] should be calculated
-
-    int edge = texelFetch (u_edgeTable, ivec2(cubeIndex, 0), 0).x;
 
     // Calculate the vertices of the triangles
 

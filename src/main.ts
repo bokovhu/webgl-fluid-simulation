@@ -14,7 +14,7 @@ import SimplexNoiseFieldGenerator from './marching-cubes/fieldgen/simplexNoise';
 import SphereFieldGenerator from './marching-cubes/fieldgen/sphere';
 import RandomFieldGenerator from './marching-cubes/fieldgen/random';
 import TerrainFieldGenerator from './marching-cubes/fieldgen/terrain';
-import TransformFeedbackMarcher from './marching-cubes/transformFeedbackMarcher';
+import AnimatedGrid from './marching-cubes/animatedGrid';
 
 export default class Main {
     private wasmModule: any;
@@ -22,7 +22,7 @@ export default class Main {
     private canvas: HTMLCanvasElement;
     private gl: WebGL2RenderingContext;
     private program: BlinnPhong;
-    private marchingCubes: MarchingCubes;
+    // private marchingCubes: MarchingCubes;
     private isoLevel: number;
     private appTime: number;
     private camera: any;
@@ -35,6 +35,8 @@ export default class Main {
     private aspectRatio: number;
     private delta: number;
     private gpuMarcher: GPUMarcher;
+    private grid: AnimatedGrid;
+    private gridCenter: vec3 = vec3.create();
     private modelMatrix: mat4 = mat4.create();
 
     constructor(wasmModule: any) {
@@ -63,7 +65,6 @@ export default class Main {
 
         this.gl.cullFace(this.gl.FRONT_AND_BACK);
         this.gl.enable(this.gl.DEPTH_TEST);
-        
     }
 
     generateMarchingCubesResult() {
@@ -72,11 +73,11 @@ export default class Main {
     }
 
     createMesh() {
-        this.marchingCubes = new MarchingCubes(
+        /* this.marchingCubes = new MarchingCubes(
             this.gl,
             new Grid1D(128, 128, 128, 1.0 / 12.0, 1.0 / 12.0, 1.0 / 12.0),
-            // new TerrainFieldGenerator(),
-            new SimplexNoiseFieldGenerator(),
+            new TerrainFieldGenerator(),
+            // new SimplexNoiseFieldGenerator(),
             // new SphereFieldGenerator (),
             new WasmMarcher(this.gl, this.wasmModule),
             // new TransformFeedbackMarcher(this.gl),
@@ -84,10 +85,11 @@ export default class Main {
                 debugMarch: true
             }
         );
-        this.marchingCubes.generate();
+        this.marchingCubes.generate(); */
 
+        this.grid = new AnimatedGrid(this.gl, 128, 128, 128, 1.0 / 12.0, 1.0 / 12.0, 1.0 / 12.0);
         this.gpuMarcher = new GPUMarcher(this.gl);
-        this.gpuMarcher.setup(this.marchingCubes.grid);
+        this.gpuMarcher.setup(this.grid);
 
         this.generateMarchingCubesResult();
     }
@@ -175,18 +177,20 @@ export default class Main {
         // this.generateMarchingCubesResult();
 
         vec3.set(
-            this.camera.position,
-            this.marchingCubes.centerPoint[0],
-            this.camera.orbitHeight,
-            this.marchingCubes.centerPoint[2]
+            this.gridCenter,
+            0.5 * (this.grid.xSize * this.grid.xScale),
+            0.5 * (this.grid.ySize * this.grid.yScale),
+            0.5 * (this.grid.zSize * this.grid.zScale)
         );
+
+        vec3.set(this.camera.position, this.gridCenter[0], this.camera.orbitHeight, this.gridCenter[2]);
         vec3.add(this.camera.position, this.camera.position, [
             Math.cos(this.appTime * this.camera.orbitSpeed) * this.camera.orbitRadius,
             0.0,
             Math.sin(this.appTime * this.camera.orbitSpeed) * this.camera.orbitRadius
         ]);
 
-        mat4.lookAt(this.camera.view, this.camera.position, this.marchingCubes.centerPoint, [ 0, 1, 0 ]);
+        mat4.lookAt(this.camera.view, this.camera.position, this.gridCenter, [ 0, 1, 0 ]);
         mat4.identity(this.modelMatrix);
 
         /*
@@ -196,6 +200,7 @@ export default class Main {
         this.program.setMaterial(this.material);
         */
 
+        this.grid.update([ this.resolution[0], this.resolution[1] ], this.delta);
         this.gpuMarcher.draw(
             (bp) => {
                 bp.setCamera(this.camera);
@@ -203,9 +208,10 @@ export default class Main {
                 bp.setMaterial(this.material);
                 bp.setModel(this.modelMatrix);
             },
-            this.marchingCubes.grid,
+            this.grid,
             [ this.resolution[0], this.resolution[1] ],
-            this.isoLevel
+            this.isoLevel,
+            this.grid.texture
         );
 
         /*

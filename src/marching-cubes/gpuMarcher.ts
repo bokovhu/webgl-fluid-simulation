@@ -254,9 +254,8 @@ export default class GPUMarcher {
 
         this.numRenderPassVertices = numVoxelsPerRenderPass * numVerticesPerTriangle;
         let vertexData = new Float32Array(numFloatsPerVertex * this.numRenderPassVertices);
-
         let ptr = 0;
-        
+
         for (let y = 0; y < this.vertexTextureSize[1]; y++) {
             for (let x = 0; x < this.vertexTextureSize[0]; x++) {
                 for (let i = 0; i < numVerticesPerTriangle; i++) {
@@ -265,9 +264,7 @@ export default class GPUMarcher {
                 }
             }
         }
-
-        console.log(vertexData);
-
+        
         this.renderPassVao = this.gl.createVertexArray();
         this.gl.bindVertexArray(this.renderPassVao);
         this.renderPassVbo = this.gl.createBuffer();
@@ -284,7 +281,8 @@ export default class GPUMarcher {
         blinnPhongConfigurer: (bp: BlinnPhongShader) => void,
         grid: Grid,
         resolution: [number, number],
-        isoValue: number
+        isoValue: number,
+        gridTexture?: WebGLTexture
     ) {
         let numPasses = grid.zSize / this.numSheetsPerGeometryPass;
 
@@ -335,7 +333,11 @@ export default class GPUMarcher {
 
                 // Grid and LUT textures
                 this.gl.activeTexture(this.gl.TEXTURE0);
-                this.gl.bindTexture(this.gl.TEXTURE_3D, this.gridTexture);
+                if (gridTexture) {
+                    this.gl.bindTexture (this.gl.TEXTURE_3D, gridTexture)
+                } else {
+                    this.gl.bindTexture(this.gl.TEXTURE_3D, this.gridTexture);
+                }
                 this.geometryPassProgram.setUniform('u_gridTexture', 0);
 
                 this.gl.activeTexture(this.gl.TEXTURE1);
