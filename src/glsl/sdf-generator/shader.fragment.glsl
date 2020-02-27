@@ -35,21 +35,21 @@ float sdf (in vec3 p) {
 
     float val = sdSphere (
         p + vec3 ( 
-            random (vec2 (1.0, 0.0)) * 3.0 - 1.5 + random(vec2(5.0, 0.0)) * cos (u_time * 2.0 * random(vec2(6.0, 0.0)) + random(vec2(11.0, 0.0))), 
-            random (vec2 (2.0, 0.0)) * 3.0 - 1.5 + random(vec2(7.0, 0.0)) * cos (u_time * 2.0 * random(vec2(8.0, 0.0)) + random(vec2(12.0, 0.0))), 
-            random (vec2 (3.0, 0.0)) * 3.0 - 1.5 + random(vec2(9.0, 0.0)) * cos (u_time * 2.0 * random(vec2(10.0, 0.0)) + random(vec2(13.0, 0.0)))
+            random (vec2 (1.0, 0.0)) * 5.0 - 2.5 + random(vec2(5.0, 0.0)) * cos (u_time * 2.0 * random(vec2(6.0, 0.0)) + random(vec2(11.0, 0.0))), 
+            random (vec2 (2.0, 0.0)) * 5.0 - 2.5 + random(vec2(7.0, 0.0)) * cos (u_time * 2.0 * random(vec2(8.0, 0.0)) + random(vec2(12.0, 0.0))), 
+            random (vec2 (3.0, 0.0)) * 5.0 - 2.5 + random(vec2(9.0, 0.0)) * cos (u_time * 2.0 * random(vec2(10.0, 0.0)) + random(vec2(13.0, 0.0)))
         ),
         random (vec2 (4.0, 0.0))
     );
 
-    for (int i = 1; i < 10; i++) {
+    for (int i = 1; i < 20; i++) {
         val = opSmoothUnion (
             val,
             sdSphere (
                 p + vec3 ( 
-                    random (vec2 (1.0, float(i))) * 3.0 - 1.5 + random(vec2(5.0, float(i))) * cos (u_time * 2.0 * random(vec2(6.0, float(i))) + random(vec2(11.0, float(i)))), 
-                    random (vec2 (2.0, float(i))) * 3.0 - 1.5 + random(vec2(7.0, float(i))) * cos (u_time * 2.0 * random(vec2(8.0, float(i))) + random(vec2(12.0, float(i)))), 
-                    random (vec2 (3.0, float(i))) * 3.0 - 1.5 + random(vec2(9.0, float(i))) * cos (u_time * 2.0 * random(vec2(10.0, float(i))) + random(vec2(13.0, float(i))))
+                    random (vec2 (1.0, float(i))) * 5.0 - 2.5 + random(vec2(5.0, float(i))) * cos (u_time * 2.0 * random(vec2(6.0, float(i))) + random(vec2(11.0, float(i)))), 
+                    random (vec2 (2.0, float(i))) * 5.0 - 2.5 + random(vec2(7.0, float(i))) * cos (u_time * 2.0 * random(vec2(8.0, float(i))) + random(vec2(12.0, float(i)))), 
+                    random (vec2 (3.0, float(i))) * 5.0 - 2.5 + random(vec2(9.0, float(i))) * cos (u_time * 2.0 * random(vec2(10.0, float(i))) + random(vec2(13.0, float(i))))
                 ),
                 random (vec2 (4.0, float(i) + 1.0))
             ),
@@ -57,11 +57,11 @@ float sdf (in vec3 p) {
         );
     }
 
-    return clamp (255.0 * val, 0.0, 255.0);
+    return 255.0 * val;
 }
 
 vec3 map (in vec3 p) {
-    return 4.0 * (p * 2.0 - 1.0);
+    return 6.0 * (p * 2.0 - 1.0);
 }
 
 void main () {

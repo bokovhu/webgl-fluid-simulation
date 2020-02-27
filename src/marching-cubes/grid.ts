@@ -1,22 +1,19 @@
-import { LAYOUT_CONTINOUS_ARRAY } from './grid/memoryLayout';
-import Grid from './grid/grid';
-import FieldGenerator from './fieldgen/fieldGenerator';
-
 import vertexSource from '../glsl/sdf-generator/shader.vertex.glsl';
 import fragmentSource from '../glsl/sdf-generator/shader.fragment.glsl';
 import { ShaderProgram } from '../rendering/shader/shaderProgram';
 import { makeProgram } from '../rendering/shader/functions';
+import Texture3D from '../rendering/texture3D';
+import FrameBuffer from '../rendering/frameBuffer';
 
-export default class AnimatedGrid implements Grid {
+export default class Grid {
     totalSize: number;
     sheetSize: number;
     rowSize: number;
     field: Float32Array;
     useIntegers: boolean = false;
-    memoryLayout: string = LAYOUT_CONTINOUS_ARRAY;
 
-    texture: WebGLTexture;
-    framebuffer: WebGLFramebuffer;
+    texture: Texture3D;
+    framebuffer: FrameBuffer;
 
     vao: WebGLVertexArrayObject;
     vbo: WebGLBuffer;
@@ -49,29 +46,17 @@ export default class AnimatedGrid implements Grid {
     }
 
     private createFieldTexture(): void {
-        this.texture = this.gl.createTexture();
-        this.gl.bindTexture(this.gl.TEXTURE_3D, this.texture);
-        this.gl.texImage3D(
-            this.gl.TEXTURE_3D,
-            0,
-            this.gl.R32F,
-            this.xSize,
-            this.ySize,
-            this.zSize,
-            0,
-            this.gl.RED,
-            this.gl.FLOAT,
-            this.field
-        );
-        this.gl.texParameteri(this.gl.TEXTURE_3D, this.gl.TEXTURE_MIN_FILTER, this.gl.NEAREST);
-        this.gl.texParameteri(this.gl.TEXTURE_3D, this.gl.TEXTURE_MAG_FILTER, this.gl.NEAREST);
-        this.gl.texParameteri(this.gl.TEXTURE_3D, this.gl.TEXTURE_WRAP_R, this.gl.CLAMP_TO_EDGE);
-        this.gl.texParameteri(this.gl.TEXTURE_3D, this.gl.TEXTURE_WRAP_S, this.gl.CLAMP_TO_EDGE);
-        this.gl.texParameteri(this.gl.TEXTURE_3D, this.gl.TEXTURE_WRAP_T, this.gl.CLAMP_TO_EDGE);
+        this.texture = new Texture3D (
+            this.gl,
+            {
+                width: this.xSize, height: this.ySize, depth: this.zSize,
+                internalFormat: this.gl.R32F, format: this.gl.RED, dataType: this.gl.FLOAT
+            }
+        )
     }
 
     private createFramebuffer(): void {
-        this.framebuffer = this.gl.createFramebuffer();
+        this.framebuffer = new FrameBuffer (this.gl, this.xSize, this.ySize)
     }
 
     private setupPass(): void {
@@ -95,35 +80,25 @@ export default class AnimatedGrid implements Grid {
         this.gl.vertexAttribPointer(0, 4, this.gl.FLOAT, false, 0, 0);
     }
 
-    generate(generator: FieldGenerator): void {}
-
     update(resolution: [number, number], delta: number): void {
         this.time += delta;
 
         let numAttachments = 4;
         let drawBuffers = [];
         for (let i = 0; i < numAttachments; i++) {
-            drawBuffers.push(this.gl.COLOR_ATTACHMENT0 + i);
+            drawBuffers.push(i);
         }
 
         let numPasses = this.zSize / numAttachments;
         for (let i = 0; i < numPasses; i++) {
 
-            this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, this.framebuffer);
+            this.framebuffer.bind ()
             for (let j = 0; j < numAttachments; j++) {
-                this.gl.framebufferTextureLayer(
-                    this.gl.FRAMEBUFFER,
-                    this.gl.COLOR_ATTACHMENT0 + j,
-                    this.texture,
-                    0,
-                    i * numAttachments + j
-                );
+                this.framebuffer.colorAttachmentLayer (j, this.texture, i * numAttachments + j, false)
             }
-            this.gl.drawBuffers(drawBuffers);
-            this.gl.viewport(0, 0, this.xSize, this.ySize);
-
-            this.gl.clearColor(255, 255, 255, 255);
-            this.gl.clear(this.gl.COLOR_BUFFER_BIT);
+            this.framebuffer.drawBuffers (drawBuffers)
+            this.framebuffer.clear ([255, 255, 255, 255])
+            this.framebuffer.applyViewport ()
 
             this.program.use();
 
@@ -135,7 +110,9 @@ export default class AnimatedGrid implements Grid {
             this.gl.drawArrays(this.gl.TRIANGLES, 0, 6);
         }
 
-        this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, null);
-        this.gl.viewport(0, 0, resolution[0], resolution[1]);
+        /* this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, null);
+        this.gl.viewport(0, 0, resolution[0], resolution[1]); */
+        this.framebuffer.unbind ()
+        this.framebuffer.resetViewport ()
     }
 }

@@ -129,8 +129,6 @@ void main () {
     int triangleVertex2Index = texelFetch(u_triangleTable, ivec2(triangleIndex + 1, cubeIndex), 0).x;
     int triangleVertex3Index = texelFetch(u_triangleTable, ivec2(triangleIndex + 2, cubeIndex), 0).x;
 
-    // triangleVertex1Index == 0 ==> vertices[0] should be calculated
-
     // Calculate the vertices of the triangles
 
     vec3 vertices [12];

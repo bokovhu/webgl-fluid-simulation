@@ -3,26 +3,13 @@ import './main.css';
 import BlinnPhong from './rendering/shader/blinnPhongShader';
 import GameGUI from './gui/gui';
 import { mat4, vec2, vec3 } from 'gl-matrix';
-import JSMarcher from './marching-cubes/jsMarcher';
-import WasmMarcher from './marching-cubes/wasmMarcher';
-import Mesh from './rendering/mesh';
-import Model from './rendering/model';
 import GPUMarcher from './marching-cubes/gpuMarcher';
-import MarchingCubes from './marching-cubes/marchingCubes';
-import Grid1D from './marching-cubes/grid/grid1D';
-import SimplexNoiseFieldGenerator from './marching-cubes/fieldgen/simplexNoise';
-import SphereFieldGenerator from './marching-cubes/fieldgen/sphere';
-import RandomFieldGenerator from './marching-cubes/fieldgen/random';
-import TerrainFieldGenerator from './marching-cubes/fieldgen/terrain';
-import AnimatedGrid from './marching-cubes/animatedGrid';
+import AnimatedGrid from './marching-cubes/grid';
 
 export default class Main {
-    private wasmModule: any;
     private gui: GameGUI;
     private canvas: HTMLCanvasElement;
     private gl: WebGL2RenderingContext;
-    private program: BlinnPhong;
-    // private marchingCubes: MarchingCubes;
     private isoLevel: number;
     private appTime: number;
     private camera: any;
@@ -39,8 +26,7 @@ export default class Main {
     private gridCenter: vec3 = vec3.create();
     private modelMatrix: mat4 = mat4.create();
 
-    constructor(wasmModule: any) {
-        this.wasmModule = wasmModule;
+    constructor() {
     }
 
     createGui() {
@@ -57,9 +43,13 @@ export default class Main {
     }
 
     initGLObjects() {
+
+        // This extension is required to allow float type textures as color attachments
+        // for framebuffer objects
         this.gl.getExtension('EXT_color_buffer_float');
 
-        this.program = new BlinnPhong(this.gl);
+        // This extension is required to allow LINEAR filtering for float type textures
+        this.gl.getExtension('OES_texture_float_linear');
 
         this.createMesh();
 
@@ -67,31 +57,12 @@ export default class Main {
         this.gl.enable(this.gl.DEPTH_TEST);
     }
 
-    generateMarchingCubesResult() {
-        console.log('Marching');
-        // this.marchingCubes.march(this.program.program, this.isoLevel);
-    }
-
     createMesh() {
-        /* this.marchingCubes = new MarchingCubes(
-            this.gl,
-            new Grid1D(128, 128, 128, 1.0 / 12.0, 1.0 / 12.0, 1.0 / 12.0),
-            new TerrainFieldGenerator(),
-            // new SimplexNoiseFieldGenerator(),
-            // new SphereFieldGenerator (),
-            new WasmMarcher(this.gl, this.wasmModule),
-            // new TransformFeedbackMarcher(this.gl),
-            {
-                debugMarch: true
-            }
-        );
-        this.marchingCubes.generate(); */
 
         this.grid = new AnimatedGrid(this.gl, 128, 128, 128, 1.0 / 12.0, 1.0 / 12.0, 1.0 / 12.0);
         this.gpuMarcher = new GPUMarcher(this.gl);
         this.gpuMarcher.setup(this.grid);
 
-        this.generateMarchingCubesResult();
     }
 
     initProperties() {
@@ -174,8 +145,6 @@ export default class Main {
         this.gl.clearColor(0, 0, 0, 1);
         this.gl.clear(this.gl.COLOR_BUFFER_BIT | this.gl.DEPTH_BUFFER_BIT);
 
-        // this.generateMarchingCubesResult();
-
         vec3.set(
             this.gridCenter,
             0.5 * (this.grid.xSize * this.grid.xScale),
@@ -193,13 +162,6 @@ export default class Main {
         mat4.lookAt(this.camera.view, this.camera.position, this.gridCenter, [ 0, 1, 0 ]);
         mat4.identity(this.modelMatrix);
 
-        /*
-        this.program.use();
-        this.program.setCamera(this.camera);
-        this.program.setLight(this.light);
-        this.program.setMaterial(this.material);
-        */
-
         this.grid.update([ this.resolution[0], this.resolution[1] ], this.delta);
         this.gpuMarcher.draw(
             (bp) => {
@@ -214,18 +176,5 @@ export default class Main {
             this.grid.texture
         );
 
-        /*
-        this.marchingCubes.render(
-            (model: any) => {
-                this.program.setModel(model.modelMatrix);
-            },
-            () => {
-                this.program.use();
-                this.program.setCamera(this.camera);
-                this.program.setLight(this.light);
-                this.program.setMaterial(this.material);
-            }
-        );
-        */
     }
 }

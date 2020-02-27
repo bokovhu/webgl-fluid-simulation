@@ -7,15 +7,23 @@ import renderPassVertexSource from '../glsl/marching-cubes/render-pass.vertex.gl
 import BlinnPhongShader from '../rendering/shader/blinnPhongShader';
 import triangleTable from './triangleTable';
 import edgeTable from './edgeTable';
-import Grid from './grid/grid';
+import Grid from './grid';
+import Texture3D from '../rendering/texture3D';
+import Texture2D from '../rendering/texture2D';
+import FrameBuffer from '../rendering/frameBuffer';
 
 export default class GPUMarcher {
-    gridTexture: WebGLTexture;
+    /* gridTexture: WebGLTexture;
     triangleVertex1Texture: WebGLTexture;
     triangleVertex2Texture: WebGLTexture;
-    triangleVertex3Texture: WebGLTexture;
-    edgeTableTexture: WebGLTexture;
-    triangleTableTexture: WebGLTexture;
+    triangleVertex3Texture: WebGLTexture; */
+
+    gridTexture: Texture3D
+    triangleVertexTextures: Texture2D[] = []
+    geometryPassFramebuffer: FrameBuffer
+    
+    edgeTableTexture: Texture2D;
+    triangleTableTexture: Texture2D;
 
     geometryPassVao: WebGLVertexArrayObject;
     geometryPassVbo: WebGLBuffer;
@@ -34,7 +42,7 @@ export default class GPUMarcher {
 
     vertexTextureSize: [number, number] = [ 0, 0 ];
 
-    geometryPassFramebuffer: WebGLFramebuffer;
+    // geometryPassFramebuffer: WebGLFramebuffer;
 
     constructor(private gl: WebGL2RenderingContext) {
         this.geometryPassProgram = makeProgram(this.gl, geometryPassVertexSource, geometryPassFragmentSource);
@@ -55,12 +63,7 @@ export default class GPUMarcher {
     }
 
     private createLookupTableTextures(): void {
-        this.triangleTableTexture = this.gl.createTexture();
-        this.gl.bindTexture(this.gl.TEXTURE_2D, this.triangleTableTexture);
-
         let triTableTextureData = new Int32Array(256 * 16);
-
-        // triangle table has 256 rows, 16 columns
 
         let ptr = 0;
         for (let row = 0; row < 256; row++) {
@@ -69,66 +72,44 @@ export default class GPUMarcher {
             }
         }
 
-        this.gl.texImage2D(
-            this.gl.TEXTURE_2D,
-            0,
-            this.gl.R32I,
-            16,
-            256,
-            0,
-            this.gl.RED_INTEGER,
-            this.gl.INT,
-            triTableTextureData
-        );
-        this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MIN_FILTER, this.gl.NEAREST);
-        this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MAG_FILTER, this.gl.NEAREST);
-        this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_WRAP_S, this.gl.CLAMP_TO_EDGE);
-        this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_WRAP_T, this.gl.CLAMP_TO_EDGE);
-
-        this.edgeTableTexture = this.gl.createTexture();
-        this.gl.bindTexture(this.gl.TEXTURE_2D, this.edgeTableTexture);
+        this.triangleTableTexture = new Texture2D (
+            this.gl,
+            {
+                width: 16, height: 256,
+                internalFormat: this.gl.R32I, format: this.gl.RED_INTEGER,
+                dataType: this.gl.INT,
+                data: triTableTextureData,
+                minFilter: this.gl.NEAREST, magFilter: this.gl.NEAREST
+            }
+        )
 
         let edgeTableTextureData = new Int32Array(256);
         for (let i = 0; i < 256; i++) {
             edgeTableTextureData[i] = edgeTable[i];
         }
-        this.gl.texImage2D(
-            this.gl.TEXTURE_2D,
-            0,
-            this.gl.R32I,
-            256,
-            1,
-            0,
-            this.gl.RED_INTEGER,
-            this.gl.INT,
-            edgeTableTextureData
-        );
-        this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MIN_FILTER, this.gl.NEAREST);
-        this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MAG_FILTER, this.gl.NEAREST);
-        this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_WRAP_S, this.gl.CLAMP_TO_EDGE);
-        this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_WRAP_T, this.gl.CLAMP_TO_EDGE);
+
+        this.edgeTableTexture = new Texture2D (
+            this.gl,
+            {
+                width: 256, height: 1,
+                internalFormat: this.gl.R32I, format: this.gl.RED_INTEGER,
+                dataType: this.gl.INT,
+                data: edgeTableTextureData,
+                minFilter: this.gl.NEAREST, magFilter: this.gl.NEAREST
+            }
+        )
+
     }
 
     private createGridTexture(grid: Grid): void {
-        this.gridTexture = this.gl.createTexture();
-        this.gl.bindTexture(this.gl.TEXTURE_3D, this.gridTexture);
-        this.gl.texImage3D(
-            this.gl.TEXTURE_3D,
-            0,
-            this.gl.R32F,
-            grid.xSize,
-            grid.ySize,
-            grid.zSize,
-            0,
-            this.gl.RED,
-            this.gl.FLOAT,
-            grid.field as Float32Array
-        );
-        this.gl.texParameteri(this.gl.TEXTURE_3D, this.gl.TEXTURE_MIN_FILTER, this.gl.NEAREST);
-        this.gl.texParameteri(this.gl.TEXTURE_3D, this.gl.TEXTURE_MAG_FILTER, this.gl.NEAREST);
-        this.gl.texParameteri(this.gl.TEXTURE_3D, this.gl.TEXTURE_WRAP_S, this.gl.CLAMP_TO_EDGE);
-        this.gl.texParameteri(this.gl.TEXTURE_3D, this.gl.TEXTURE_WRAP_T, this.gl.CLAMP_TO_EDGE);
-        this.gl.texParameteri(this.gl.TEXTURE_3D, this.gl.TEXTURE_WRAP_R, this.gl.CLAMP_TO_EDGE);
+        this.gridTexture = new Texture3D (
+            this.gl,
+            {
+                width: grid.xSize, height: grid.ySize, depth: grid.zSize,
+                format: this.gl.RED,
+                data: grid.field
+            }
+        )
     }
 
     private createVertexTextures(grid: Grid): void {
@@ -137,67 +118,20 @@ export default class GPUMarcher {
 
         this.vertexTextureSize = [ vertexTextureWidth, vertexTextureHeight ];
 
-        // Vertex 1 texture
-        // This one requires 4 floats / pixel
+        for (let i = 0; i < 3; i++) {
+            this.triangleVertexTextures.push (
+                new Texture2D (
+                    this.gl,
+                    {
+                        width: vertexTextureWidth, height: vertexTextureHeight,
+                        internalFormat: this.gl.RGBA32F, format: this.gl.RGBA,
+                        dataType: this.gl.FLOAT,
+                        minFilter: this.gl.NEAREST, magFilter: this.gl.NEAREST
+                    }
+                )
+            )
+        }
 
-        this.triangleVertex1Texture = this.gl.createTexture();
-        this.gl.bindTexture(this.gl.TEXTURE_2D, this.triangleVertex1Texture);
-        this.gl.texImage2D(
-            this.gl.TEXTURE_2D,
-            0,
-            this.gl.RGBA32F,
-            vertexTextureWidth,
-            vertexTextureHeight,
-            0,
-            this.gl.RGBA,
-            this.gl.FLOAT,
-            null
-        );
-        this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MIN_FILTER, this.gl.NEAREST);
-        this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MAG_FILTER, this.gl.NEAREST);
-        this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_WRAP_S, this.gl.REPEAT);
-        this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_WRAP_T, this.gl.REPEAT);
-
-        // Vertex 2 texture
-        // Vertex 2 & 3 textures require 3 floats per pixel
-
-        this.triangleVertex2Texture = this.gl.createTexture();
-        this.gl.bindTexture(this.gl.TEXTURE_2D, this.triangleVertex2Texture);
-        this.gl.texImage2D(
-            this.gl.TEXTURE_2D,
-            0,
-            this.gl.RGBA32F,
-            vertexTextureWidth,
-            vertexTextureHeight,
-            0,
-            this.gl.RGBA,
-            this.gl.FLOAT,
-            null
-        );
-        this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MIN_FILTER, this.gl.NEAREST);
-        this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MAG_FILTER, this.gl.NEAREST);
-        this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_WRAP_S, this.gl.REPEAT);
-        this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_WRAP_T, this.gl.REPEAT);
-
-        // Vertex 3 texture
-
-        this.triangleVertex3Texture = this.gl.createTexture();
-        this.gl.bindTexture(this.gl.TEXTURE_2D, this.triangleVertex3Texture);
-        this.gl.texImage2D(
-            this.gl.TEXTURE_2D,
-            0,
-            this.gl.RGBA32F,
-            vertexTextureWidth,
-            vertexTextureHeight,
-            0,
-            this.gl.RGBA,
-            this.gl.FLOAT,
-            null
-        );
-        this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MIN_FILTER, this.gl.NEAREST);
-        this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MAG_FILTER, this.gl.NEAREST);
-        this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_WRAP_S, this.gl.REPEAT);
-        this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_WRAP_T, this.gl.REPEAT);
     }
 
     private setupGeometryPass(): void {
@@ -220,31 +154,12 @@ export default class GPUMarcher {
         this.gl.enableVertexAttribArray(0);
         this.gl.vertexAttribPointer(0, 4, this.gl.FLOAT, false, 0, 0);
 
-        this.geometryPassFramebuffer = this.gl.createFramebuffer();
-        this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, this.geometryPassFramebuffer);
-        this.gl.framebufferTexture2D(
-            this.gl.FRAMEBUFFER,
-            this.gl.COLOR_ATTACHMENT0,
-            this.gl.TEXTURE_2D,
-            this.triangleVertex1Texture,
-            0
-        );
-        this.gl.framebufferTexture2D(
-            this.gl.FRAMEBUFFER,
-            this.gl.COLOR_ATTACHMENT1,
-            this.gl.TEXTURE_2D,
-            this.triangleVertex2Texture,
-            0
-        );
-        this.gl.framebufferTexture2D(
-            this.gl.FRAMEBUFFER,
-            this.gl.COLOR_ATTACHMENT2,
-            this.gl.TEXTURE_2D,
-            this.triangleVertex3Texture,
-            0
-        );
+        this.geometryPassFramebuffer = new FrameBuffer (this.gl, this.vertexTextureSize[0], this.vertexTextureSize[1])
+        this.geometryPassFramebuffer.bind ()
+        for (let i = 0; i < this.triangleVertexTextures.length; i++) {
+            this.geometryPassFramebuffer.colorAttachment (i, this.triangleVertexTextures[i])
+        }
 
-        this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, null);
     }
 
     private setupRenderPass(grid: Grid): void {
@@ -282,7 +197,7 @@ export default class GPUMarcher {
         grid: Grid,
         resolution: [number, number],
         isoValue: number,
-        gridTexture?: WebGLTexture
+        gridTexture?: Texture3D
     ) {
         let numPasses = grid.zSize / this.numSheetsPerGeometryPass;
 
@@ -304,15 +219,10 @@ export default class GPUMarcher {
             for (let triangleIndex = 0; triangleIndex < 5; triangleIndex++) {
                 // Set-up the geometry pass FBO for rendering
 
-                this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, this.geometryPassFramebuffer);
-                this.gl.viewport(0, 0, this.vertexTextureSize[0], this.vertexTextureSize[1]);
-                this.gl.drawBuffers([
-                    this.gl.COLOR_ATTACHMENT0,
-                    this.gl.COLOR_ATTACHMENT1,
-                    this.gl.COLOR_ATTACHMENT2
-                ]);
-                this.gl.clearColor(0, 0, 0, 0);
-                this.gl.clear(this.gl.COLOR_BUFFER_BIT);
+                this.geometryPassFramebuffer.bind ()
+                this.geometryPassFramebuffer.applyViewport ()
+                this.geometryPassFramebuffer.drawBuffers ([0, 1, 2])
+                this.geometryPassFramebuffer.clear ()
 
                 // Configure the geometry pass shader for the current pass
                 this.geometryPassProgram.use();
@@ -332,21 +242,20 @@ export default class GPUMarcher {
                 this.geometryPassProgram.setUniform('u_triangleIndex', triangleIndex);
 
                 // Grid and LUT textures
-                this.gl.activeTexture(this.gl.TEXTURE0);
-                if (gridTexture) {
-                    this.gl.bindTexture (this.gl.TEXTURE_3D, gridTexture)
+               if (gridTexture) {
+                    // this.gl.bindTexture (this.gl.TEXTURE_3D, gridTexture)
+                    gridTexture.bind (0)
                 } else {
-                    this.gl.bindTexture(this.gl.TEXTURE_3D, this.gridTexture);
+                    // this.gl.bindTexture(this.gl.TEXTURE_3D, this.gridTexture.handle);
+                    this.gridTexture.bind (0)
                 }
-                this.geometryPassProgram.setUniform('u_gridTexture', 0);
+               this.geometryPassProgram.setUniform('u_gridTexture', 0);
 
-                this.gl.activeTexture(this.gl.TEXTURE1);
-                this.gl.bindTexture(this.gl.TEXTURE_2D, this.edgeTableTexture);
-                this.geometryPassProgram.setUniform('u_edgeTable', 1);
+               this.edgeTableTexture.bind (1)
+               this.geometryPassProgram.setUniform('u_edgeTable', 1);
 
-                this.gl.activeTexture(this.gl.TEXTURE2);
-                this.gl.bindTexture(this.gl.TEXTURE_2D, this.triangleTableTexture);
-                this.geometryPassProgram.setUniform('u_triangleTable', 2);
+               this.triangleTableTexture.bind (2)
+               this.geometryPassProgram.setUniform('u_triangleTable', 2);
 
                 // Bind the geometry pass VAO, and draw it
                 // It's only a single full-screen quad
@@ -354,8 +263,8 @@ export default class GPUMarcher {
                 this.gl.drawArrays(this.gl.TRIANGLES, 0, 6);
 
                 // Bind the original FBO, and restore viewport
-                this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, null);
-                this.gl.viewport(0, 0, resolution[0], resolution[1]);
+                this.geometryPassFramebuffer.unbind ()
+                this.geometryPassFramebuffer.resetViewport ()
 
                 // Prepare for the rendering pass
                 this.renderPassProgram.use();
@@ -364,17 +273,10 @@ export default class GPUMarcher {
                 blinnPhongConfigurer(this.renderPassProgram);
 
                 // Bind the vertex textures
-                this.gl.activeTexture(this.gl.TEXTURE0);
-                this.gl.bindTexture(this.gl.TEXTURE_2D, this.triangleVertex1Texture);
-                this.renderPassProgram.program.setUniform('u_vertex1Texture', 0);
-
-                this.gl.activeTexture(this.gl.TEXTURE1);
-                this.gl.bindTexture(this.gl.TEXTURE_2D, this.triangleVertex2Texture);
-                this.renderPassProgram.program.setUniform('u_vertex2Texture', 1);
-
-                this.gl.activeTexture(this.gl.TEXTURE2);
-                this.gl.bindTexture(this.gl.TEXTURE_2D, this.triangleVertex3Texture);
-                this.renderPassProgram.program.setUniform('u_vertex3Texture', 2);
+               for (let i = 0; i < this.triangleVertexTextures.length; i++) {
+                   this.triangleVertexTextures [i].bind (i)
+                   this.renderPassProgram.program.setUniform(`u_vertex${i}Texture`, i);
+               }
 
                 // Draw the render pass VAO
                 this.gl.bindVertexArray(this.renderPassVao);
