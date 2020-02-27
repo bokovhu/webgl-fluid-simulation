@@ -25,6 +25,7 @@ export default interface Texture {
     dataType: GLenum;
 
     bind (textureUnit?: number | null): void
+    upload (data: Float32Array | Int32Array): void
 
 }
 

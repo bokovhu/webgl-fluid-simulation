@@ -1,28 +1,67 @@
-# Marching cubes possible memory layouts
+# Fluid simulation overview
 
-* 3-dimensional array
-    * Marcher input is a block to process
-* 2-dimensional array - Each sub-array is a complete sheet
-    * Marcher input is the starting and ending sheet to process
-* 1-dimensional array - All values of the 3D texture in a single continous array
-    * Marcher input is the starting and ending index to process
+1. Velocity diffusion
+2. Pressure diffusion
+3. Velocity confinement
 
-# Marching cubes test cases
 
-* Simplex noise
-* Sphere in the middle
-* Random values
+## 1. Diffusion
 
-# Marchers
+### Algorithm
 
-* Pure JavaScript marcher
-* WebAssembly marcher
-* GPU marcher
-
-| Marcher | Memory layout type | Test case | Performance (frame time in ms) |
-| Pure JS | 1D array | Simplex noise | |
-| Pure JS | 2D array | Simplex noise | |
-| Pure JS | 3D array | Simplex noise | |
-| WebAssembly | 1D array | Simplex noise | |
-| WebAssembly | 2D array | Simplex noise | |
-| WebAssembly | 3D array | Simplex noise | |
+```
+INPUT: 
+    in:     float[Depth][Height][Width]
+    out:    float[Depth][Height][Width]
+    scale:  float
+    dt:     float
+STEPS:
+    1) a := dt * scale
+    2) Handle borders
+        2.1) Handle front and back layers
+            2.1.1) for (y := (1) -> (Height - 1))
+                2.1.1.1) for (x := (1) -> (Width - 1))
+                    2.1.1.1.1) out [0][y][x]            
+                        = in [0][y][x] 
+                            + a * ( 
+                                in[0][y - 1][x] + 
+                                in[0][y + 1][x] + 
+                                in[0][y][x - 1] + 
+                                in[0][y][x + 1] + 
+                                in[1][y][x] 
+                                - 5.0 * in[0][y][x] 
+                            )
+                    2.1.1.1.2) out [Depth - 1][y][x]   
+                         = in [Depth - 1][y][x] 
+                            + a * ( 
+                                in[Depth - 1][y - 1][x] + 
+                                in[Depth - 1][y + 1][x] + 
+                                in[Depth - 1][y][x - 1] + 
+                                in[Depth - 1][y][x + 1] + 
+                                in[Depth - 2][y][x] 
+                                - 5.0 * in[0][y][x] 
+                            )
+        2.2) Handle top and bottom layers
+            2.2.1) for (z := (1) -> (Depth - 1))
+                2.2.1.1) for (x := (1) -> (Width - 1))
+                    2.2.1.1.1) out [z][0][x]            
+                        = in [z][0][x] 
+                            + a * ( 
+                                in[z - 1][0][x] + 
+                                in[z + 1][0][x] + 
+                                in[z][0][x - 1] + 
+                                in[z][0][x + 1] + 
+                                in[z][1][x] 
+                                - 5.0 * in[z][0][x] 
+                            )
+                    2.2.1.1.2) out [z][Height - 1][x]   
+                        = in [z][Height - 1][x]
+                            + a * (
+                                in[z - 1][Height - 1][x] +
+                                in[z + 1][Height - 1][x] + 
+                                in[z][Height - 1][x - 1] +
+                                in[z][Height - 1][x + 1] +
+                                in[z][Height - 2][x]
+                                - 5.0 * in[z][Height - 1][x]
+                            )
+```

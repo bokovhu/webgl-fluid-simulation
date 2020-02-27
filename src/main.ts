@@ -5,6 +5,7 @@ import GameGUI from './gui/gui';
 import { mat4, vec2, vec3 } from 'gl-matrix';
 import GPUMarcher from './marching-cubes/gpuMarcher';
 import AnimatedGrid from './marching-cubes/grid';
+import FluidSimulation from './fluid/fluidSimulation';
 
 export default class Main {
     private gui: GameGUI;
@@ -25,9 +26,9 @@ export default class Main {
     private grid: AnimatedGrid;
     private gridCenter: vec3 = vec3.create();
     private modelMatrix: mat4 = mat4.create();
+    private fluidSimulation: FluidSimulation;
 
-    constructor() {
-    }
+    constructor() {}
 
     createGui() {
         this.gui = new GameGUI(this);
@@ -43,7 +44,6 @@ export default class Main {
     }
 
     initGLObjects() {
-
         // This extension is required to allow float type textures as color attachments
         // for framebuffer objects
         this.gl.getExtension('EXT_color_buffer_float');
@@ -58,11 +58,32 @@ export default class Main {
     }
 
     createMesh() {
-
         this.grid = new AnimatedGrid(this.gl, 128, 128, 128, 1.0 / 12.0, 1.0 / 12.0, 1.0 / 12.0);
+
         this.gpuMarcher = new GPUMarcher(this.gl);
         this.gpuMarcher.setup(this.grid);
 
+        this.fluidSimulation = new FluidSimulation(this.gl, [ 128, 128, 128 ], 1.0 / 60.0);
+
+        let fb = new Float32Array(128 * 128 * 128);
+        let ptr = 0;
+
+        for (let z = 0; z < 128; z++) {
+            for (let y = 0; y < 128; y++) {
+                for (let x = 0; x < 128; x++) {
+                    let pos = vec3.fromValues(x / 128.0, y / 128.0, z / 128.0);
+                    vec3.scale(pos, pos, 4.0);
+                    vec3.sub(pos, pos, vec3.fromValues(2.0, 2.0, 2.0));
+                    let val = vec3.dist(pos, vec3.fromValues(0.0, 0.0, 0.0)) * 128.0;
+                    val += Math.random() * 128.0 - 64.0;
+                    if (val < 0.0) val = 0.0;
+                    fb[ptr++] = val;
+                }
+            }
+        }
+
+        this.fluidSimulation.pressureGridTexture.upload(fb);
+        this.fluidSimulation.otherPressureGridTexture.upload(fb);
     }
 
     initProperties() {
@@ -162,7 +183,9 @@ export default class Main {
         mat4.lookAt(this.camera.view, this.camera.position, this.gridCenter, [ 0, 1, 0 ]);
         mat4.identity(this.modelMatrix);
 
-        this.grid.update([ this.resolution[0], this.resolution[1] ], this.delta);
+        this.fluidSimulation.update(this.delta);
+
+        // this.grid.update([ this.resolution[0], this.resolution[1] ], this.delta);
         this.gpuMarcher.draw(
             (bp) => {
                 bp.setCamera(this.camera);
@@ -173,8 +196,8 @@ export default class Main {
             this.grid,
             [ this.resolution[0], this.resolution[1] ],
             this.isoLevel,
-            this.grid.texture
+            // this.grid.texture
+            this.fluidSimulation.pressureGridTexture
         );
-
     }
 }

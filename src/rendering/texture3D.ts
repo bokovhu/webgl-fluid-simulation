@@ -18,7 +18,7 @@ export default class Texture3D implements Texture {
     constructor(private gl: WebGL2RenderingContext, config: TextureConfiguration) {
         this.handle = this.gl.createTexture();
         config = fillMissingConfigWithDefaults(gl, config, false);
-        console.log (config)
+        console.log(config);
 
         this.minFilter = config.minFilter;
         this.magFilter = config.magFilter;
@@ -62,5 +62,21 @@ export default class Texture3D implements Texture {
             this.gl.activeTexture(this.gl.TEXTURE0 + textureUnit);
         }
         this.gl.bindTexture(this.gl.TEXTURE_3D, this.handle);
+    }
+
+    upload(data: Float32Array | Int32Array): void {
+        this.gl.bindTexture(this.gl.TEXTURE_3D, this.handle);
+        this.gl.texImage3D(
+            this.gl.TEXTURE_3D,
+            0,
+            this.internalFormat,
+            this.width,
+            this.height,
+            this.depth,
+            0,
+            this.format,
+            this.dataType,
+            data
+        );
     }
 }
