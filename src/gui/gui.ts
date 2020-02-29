@@ -1,16 +1,24 @@
 import * as dat from 'dat.gui';
-import Stats from 'stats.js'
+import Stats from 'stats.js';
 
 export default class GameGUI {
+    private gui: any;
+    private stats: Stats;
 
-    constructor (target) {
-        this.target = target
-        this.gui = new dat.GUI ()
+    constructor(private target: any) {
+        this.gui = new dat.GUI();
         this.stats = new Stats();
     }
 
-    init () {
+    beginStats() {
+        this.stats.begin();
+    }
 
+    endStats() {
+        this.stats.end();
+    }
+
+    private createMaterialGUI() {
         let materialFolder = this.gui.addFolder('Material');
 
         let materialDiffuseFolder = materialFolder.addFolder('Diffuse');
@@ -24,7 +32,9 @@ export default class GameGUI {
         materialSpecularFolder.add(this.target.material.specular, '2', 0.0, 1.0);
 
         materialFolder.add(this.target.material, 'shininess', 0.0, 500.0);
+    }
 
+    private createLightGUI() {
         let lightFolder = this.gui.addFolder('Light');
         lightFolder.add(this.target.light, 'type', [ 'point', 'directional', 'spot' ]);
 
@@ -47,13 +57,17 @@ export default class GameGUI {
         lightAmbientFolder.add(this.target.light.ambient, '0', 0.0, 1.0, 0.05);
         lightAmbientFolder.add(this.target.light.ambient, '1', 0.0, 1.0, 0.05);
         lightAmbientFolder.add(this.target.light.ambient, '2', 0.0, 1.0, 0.05);
+    }
 
+    private createMarchingCubesGUI() {
         let marchingCubesFolder = this.gui.addFolder('Marching Cubes');
         let isoLevelController = marchingCubesFolder.add(this.target, 'isoLevel', 0, 255, 1);
         isoLevelController.onFinishChange(() => {
             this.target.generateMarchingCubesResult();
         });
+    }
 
+    private createCameraGUI() {
         let cameraFolder = this.gui.addFolder('Camera');
         let cameraOrbitCenterFolder = cameraFolder.addFolder('Orbit Center');
         cameraOrbitCenterFolder.add(this.target.camera.orbitCenter, '0', -10, 10, 0.1);
@@ -62,10 +76,23 @@ export default class GameGUI {
         cameraFolder.add(this.target.camera, 'orbitHeight', -25, 25, 0.1);
         cameraFolder.add(this.target.camera, 'orbitSpeed', 0.05, 2.0, 0.01);
         cameraFolder.add(this.target.camera, 'orbitRadius', 4.0, 50.0, 0.5);
+    }
+
+    private createFluidSimulationGUI() {
+        let fluidSimulationFolder = this.gui.addFolder('Fluid Simulation');
+        fluidSimulationFolder.add(this.target, 'resetSimulationState').name('Reset simulation');
+        fluidSimulationFolder.add(this.target.fluidSimulation, 'diffusionScale', 0.01, 2.0, 0.01);
+        fluidSimulationFolder.add(this.target.fluidSimulation, 'diffusionSteps', 1, 50, 1);
+    }
+
+    init() {
+        this.createMaterialGUI();
+        this.createLightGUI();
+        this.createMarchingCubesGUI();
+        this.createCameraGUI();
+        this.createFluidSimulationGUI();
 
         this.stats.showPanel(0);
         document.body.appendChild(this.stats.dom);
-
     }
-
 }

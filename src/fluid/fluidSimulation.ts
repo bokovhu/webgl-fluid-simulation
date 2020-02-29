@@ -2,9 +2,11 @@ import { ShaderProgram } from '../rendering/shader/shaderProgram';
 
 import vertexSource from '../glsl/fluid/shader.vertex.glsl';
 import pressureDiffusionFragmentSource from '../glsl/fluid/pressure-diffusion/shader.fragment.glsl';
+import copyTexture3DFragmentSource from '../glsl/fluid/tex-copy/shader.fragment.glsl';
 import { makeProgram } from '../rendering/shader/functions';
 import Texture3D from '../rendering/texture3D';
 import FrameBuffer from '../rendering/frameBuffer';
+import Grid from '../marching-cubes/grid';
 
 export class PressureDiffusionProgram {
     program: ShaderProgram;
@@ -34,6 +36,28 @@ export class PressureDiffusionProgram {
 
     use(): void {
         this.program.use();
+    }
+}
+
+export class CopyTexture3DProgram {
+    program: ShaderProgram;
+
+    constructor(private gl: WebGL2RenderingContext) {
+        this.program = makeProgram(gl, vertexSource, copyTexture3DFragmentSource);
+    }
+
+    use() {
+        this.program.use();
+    }
+
+    setTexture(texture: Texture3D) {
+        texture.bind(0);
+        this.program.setUniform('u_texture', 0);
+        this.program.setUniform('u_textureResolution', [ texture.width, texture.height, texture.depth ]);
+    }
+
+    setLayerOffset(offset: number) {
+        this.program.setUniform('u_layerOffset', offset);
     }
 }
 
@@ -69,15 +93,20 @@ export default class FluidSimulation {
     vao: WebGLVertexArrayObject;
     vbo: WebGLBuffer;
     private pressureDiffusion: PressureDiffusionProgram;
+    private textureCopy: CopyTexture3DProgram;
 
     private timeAccumulator: number = 0.0;
 
-    constructor(private gl: WebGL2RenderingContext, size: [number, number, number], private timestep: number) {
-        this.xSize = size[0];
-        this.ySize = size[1];
-        this.zSize = size[2];
+    diffusionScale: number = 0.1;
+    diffusionSteps: number = 20;
+
+    constructor(private gl: WebGL2RenderingContext, grid: Grid, private timestep: number) {
+        this.xSize = grid.xSize;
+        this.ySize = grid.ySize;
+        this.zSize = grid.zSize;
 
         this.pressureDiffusion = new PressureDiffusionProgram(this.gl);
+        this.textureCopy = new CopyTexture3DProgram(this.gl);
         this.framebuffer = new FrameBuffer(this.gl, this.xSize, this.ySize);
 
         this.setup();
@@ -146,34 +175,65 @@ export default class FluidSimulation {
         while (this.timeAccumulator >= this.timestep) {
             // Pressure diffusion
 
-            for (let pass = 0; pass < this.zSize / 4; pass++) {
-                this.framebuffer.bind();
+            for (let diffuseStep = 0; diffuseStep < this.diffusionSteps; diffuseStep++) {
+                for (let pass = 0; pass < this.zSize / 4; pass++) {
+                    this.framebuffer.bind();
 
-                this.framebuffer.colorAttachmentLayer(0, this.pressureGrid.other, 4 * pass, false);
-                this.framebuffer.colorAttachmentLayer(1, this.pressureGrid.other, 4 * pass + 1, false);
-                this.framebuffer.colorAttachmentLayer(2, this.pressureGrid.other, 4 * pass + 2, false);
-                this.framebuffer.colorAttachmentLayer(3, this.pressureGrid.other, 4 * pass + 3, false);
-                this.framebuffer.drawBuffers(drawBuffers);
-                this.framebuffer.clear();
-                this.framebuffer.applyViewport();
+                    this.framebuffer.colorAttachmentLayer(0, this.pressureGrid.other, 4 * pass, false);
+                    this.framebuffer.colorAttachmentLayer(1, this.pressureGrid.other, 4 * pass + 1, false);
+                    this.framebuffer.colorAttachmentLayer(2, this.pressureGrid.other, 4 * pass + 2, false);
+                    this.framebuffer.colorAttachmentLayer(3, this.pressureGrid.other, 4 * pass + 3, false);
+                    this.framebuffer.drawBuffers(drawBuffers);
+                    this.framebuffer.clear();
+                    this.framebuffer.applyViewport();
 
-                this.pressureDiffusion.use();
-                this.pressureDiffusion.setGrid(this.pressureGrid.current);
-                this.pressureDiffusion.setDiffusionScale(0.5);
-                this.pressureDiffusion.setTimestep(this.timestep);
+                    this.pressureDiffusion.use();
+                    this.pressureDiffusion.setGrid(this.pressureGrid.current);
+                    this.pressureDiffusion.setDiffusionScale(this.diffusionScale);
+                    this.pressureDiffusion.setTimestep(this.timestep);
 
-                this.pressureDiffusion.setLayerOffset(pass * 4);
+                    this.pressureDiffusion.setLayerOffset(pass * 4);
 
-                this.gl.drawArrays(this.gl.TRIANGLES, 0, 6);
+                    this.gl.drawArrays(this.gl.TRIANGLES, 0, 6);
+                }
 
+                // current is the previous, we've drawn into other
+                this.pressureGrid.flip();
+
+                // now current is the new texture, other is the old
+                // copy current into old so that they are the same
+                this.copyTexture3D(this.pressureGrid.current, this.pressureGrid.other, this.framebuffer);
             }
-
-            this.pressureGrid.flip();
 
             this.timeAccumulator -= this.timestep;
         }
 
         this.framebuffer.unbind();
         this.framebuffer.resetViewport();
+    }
+
+    copyTexture3D(source: Texture3D, target: Texture3D, fb: FrameBuffer) {
+        let drawBuffers = [ 0, 1, 2, 3 ];
+
+        this.gl.bindVertexArray(this.vao);
+
+        for (let pass = 0; pass < target.depth / 4; pass++) {
+            fb.bind();
+            fb.colorAttachmentLayer(0, target, pass * 4 + 0, false);
+            fb.colorAttachmentLayer(1, target, pass * 4 + 1, false);
+            fb.colorAttachmentLayer(2, target, pass * 4 + 2, false);
+            fb.colorAttachmentLayer(3, target, pass * 4 + 3, false);
+            fb.drawBuffers(drawBuffers);
+            fb.clear();
+            fb.applyViewport();
+
+            this.textureCopy.use();
+            this.textureCopy.setTexture(source);
+            this.textureCopy.setLayerOffset(pass * 4);
+            this.gl.drawArrays(this.gl.TRIANGLES, 0, 6);
+        }
+
+        fb.unbind();
+        fb.resetViewport();
     }
 }

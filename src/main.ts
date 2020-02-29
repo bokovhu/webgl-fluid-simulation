@@ -6,6 +6,7 @@ import { mat4, vec2, vec3 } from 'gl-matrix';
 import GPUMarcher from './marching-cubes/gpuMarcher';
 import AnimatedGrid from './marching-cubes/grid';
 import FluidSimulation from './fluid/fluidSimulation';
+import Grid from './marching-cubes/grid';
 
 export default class Main {
     private gui: GameGUI;
@@ -23,10 +24,10 @@ export default class Main {
     private aspectRatio: number;
     private delta: number;
     private gpuMarcher: GPUMarcher;
-    private grid: AnimatedGrid;
+    private grid: Grid;
     private gridCenter: vec3 = vec3.create();
     private modelMatrix: mat4 = mat4.create();
-    private fluidSimulation: FluidSimulation;
+    public fluidSimulation: FluidSimulation;
 
     constructor() {}
 
@@ -51,20 +52,33 @@ export default class Main {
         // This extension is required to allow LINEAR filtering for float type textures
         this.gl.getExtension('OES_texture_float_linear');
 
-        this.createMesh();
+        this.initFluidSimulation();
 
         this.gl.cullFace(this.gl.FRONT_AND_BACK);
         this.gl.enable(this.gl.DEPTH_TEST);
     }
 
-    createMesh() {
-        this.grid = new AnimatedGrid(this.gl, 128, 128, 128, 1.0 / 12.0, 1.0 / 12.0, 1.0 / 12.0);
+    initFluidSimulation() {
+        this.grid = {
+            xSize: 128,
+            ySize: 128,
+            zSize: 128,
+            xScale: 1.0 / 12.0,
+            yScale: 1.0 / 12.0,
+            zScale: 1.0 / 12.0,
+            texture: null
+        };
+
+        this.fluidSimulation = new FluidSimulation(this.gl, this.grid, 1.0 / 60.0);
+        this.grid.texture = this.fluidSimulation.pressureGridTexture;
 
         this.gpuMarcher = new GPUMarcher(this.gl);
         this.gpuMarcher.setup(this.grid);
 
-        this.fluidSimulation = new FluidSimulation(this.gl, [ 128, 128, 128 ], 1.0 / 60.0);
+        this.resetSimulationState();
+    }
 
+    resetSimulationState() {
         let fb = new Float32Array(128 * 128 * 128);
         let ptr = 0;
 
@@ -75,8 +89,8 @@ export default class Main {
                     vec3.scale(pos, pos, 4.0);
                     vec3.sub(pos, pos, vec3.fromValues(2.0, 2.0, 2.0));
                     let val = vec3.dist(pos, vec3.fromValues(0.0, 0.0, 0.0)) * 128.0;
-                    val += Math.random() * 128.0 - 64.0;
-                    if (val < 0.0) val = 0.0;
+                    val += Math.random() * 32.0 - 16.0;
+                    // if (val < 0.0) val = 0.0;
                     fb[ptr++] = val;
                 }
             }
@@ -120,9 +134,9 @@ export default class Main {
 
     start() {
         this.initProperties();
-        this.createGui();
         this.createWebGLContext();
         this.initGLObjects();
+        this.createGui();
 
         this.lastFrameTimestamp = Date.now();
 
@@ -148,7 +162,7 @@ export default class Main {
     }
 
     onAnimationFrame() {
-        this.gui.stats.begin();
+        this.gui.beginStats();
 
         let now = Date.now();
         this.delta = (now - this.lastFrameTimestamp) * 0.001;
@@ -157,7 +171,7 @@ export default class Main {
 
         this.onDraw();
 
-        this.gui.stats.end();
+        this.gui.endStats();
 
         window.requestAnimationFrame(this.onAnimationFrame.bind(this));
     }
@@ -185,7 +199,7 @@ export default class Main {
 
         this.fluidSimulation.update(this.delta);
 
-        // this.grid.update([ this.resolution[0], this.resolution[1] ], this.delta);
+        this.grid.texture = this.fluidSimulation.pressureGridTexture;
         this.gpuMarcher.draw(
             (bp) => {
                 bp.setCamera(this.camera);
@@ -196,8 +210,7 @@ export default class Main {
             this.grid,
             [ this.resolution[0], this.resolution[1] ],
             this.isoLevel,
-            // this.grid.texture
-            this.fluidSimulation.pressureGridTexture
+            this.grid.texture
         );
     }
 }
