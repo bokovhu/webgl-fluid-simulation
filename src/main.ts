@@ -52,6 +52,8 @@ export default class Main {
         // This extension is required to allow LINEAR filtering for float type textures
         this.gl.getExtension('OES_texture_float_linear');
 
+        this.gl.getExtension('OES_texture_half_float_linear');
+
         this.initFluidSimulation();
 
         this.gl.cullFace(this.gl.FRONT_AND_BACK);
@@ -86,18 +88,39 @@ export default class Main {
             for (let y = 0; y < 128; y++) {
                 for (let x = 0; x < 128; x++) {
                     let pos = vec3.fromValues(x / 128.0, y / 128.0, z / 128.0);
-                    vec3.scale(pos, pos, 4.0);
-                    vec3.sub(pos, pos, vec3.fromValues(2.0, 2.0, 2.0));
-                    let val = vec3.dist(pos, vec3.fromValues(0.0, 0.0, 0.0)) * 128.0;
-                    val += Math.random() * 32.0 - 16.0;
-                    // if (val < 0.0) val = 0.0;
+                    vec3.scale(pos, pos, 32.0);
+                    vec3.sub(pos, pos, vec3.fromValues(16.0, 16.0, 16.0));
+                    let val = vec3.dist(pos, vec3.fromValues(0.0, 0.0, 0.0)) - 8.0;
                     fb[ptr++] = val;
                 }
             }
         }
 
-        this.fluidSimulation.pressureGridTexture.upload(fb);
-        this.fluidSimulation.otherPressureGridTexture.upload(fb);
+        this.fluidSimulation.levelSetTexture.upload(fb);
+        this.fluidSimulation.otherLevelSetTexture.upload(fb);
+
+        fb = new Float32Array(128 * 128 * 128 * 4);
+        ptr = 0;
+
+        for (let z = 0; z < 128; z++) {
+            for (let y = 0; y < 128; y++) {
+                for (let x = 0; x < 128; x++) {
+                    let pos = vec3.fromValues(x / 128.0, y / 128.0, z / 128.0);
+                    let vel = vec3.fromValues(
+                        0.1 * Math.random () - 0.05,
+                        0.1 * Math.random () - 0.05,
+                        0.1 * Math.random () - 0.05
+                    );
+                    fb[ptr++] = vel[0];
+                    fb[ptr++] = vel[1];
+                    fb[ptr++] = vel[2];
+                    fb[ptr++] = 0.0;
+                }
+            }
+        }
+
+        this.fluidSimulation.velocityGridTexture.upload(fb);
+        this.fluidSimulation.otherVelocityGridTexture.upload(fb);
     }
 
     initProperties() {
@@ -199,7 +222,7 @@ export default class Main {
 
         this.fluidSimulation.update(this.delta);
 
-        this.grid.texture = this.fluidSimulation.pressureGridTexture;
+        this.grid.texture = this.fluidSimulation.levelSetTexture;
         this.gpuMarcher.draw(
             (bp) => {
                 bp.setCamera(this.camera);
@@ -209,7 +232,7 @@ export default class Main {
             },
             this.grid,
             [ this.resolution[0], this.resolution[1] ],
-            this.isoLevel,
+            0.0,
             this.grid.texture
         );
     }

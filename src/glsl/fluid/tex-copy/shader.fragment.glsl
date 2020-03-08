@@ -16,8 +16,40 @@ in vec2 v_texCoords;
 
 void main () {
 
-    out_layer1 = texture(u_texture, vec3 (v_texCoords.x, v_texCoords.y, (float(u_layerOffset) + 0.0) / u_textureResolution.z));
-    out_layer2 = texture(u_texture, vec3 (v_texCoords.x, v_texCoords.y, (float(u_layerOffset) + 1.0) / u_textureResolution.z));
-    out_layer3 = texture(u_texture, vec3 (v_texCoords.x, v_texCoords.y, (float(u_layerOffset) + 2.0) / u_textureResolution.z));
-    out_layer4 = texture(u_texture, vec3 (v_texCoords.x, v_texCoords.y, (float(u_layerOffset) + 3.0) / u_textureResolution.z));
+    out_layer1 = texelFetch(
+        u_texture, 
+        ivec3 (
+            int(v_texCoords.x * u_textureResolution.x), 
+            int(v_texCoords.y * u_textureResolution.y), 
+            u_layerOffset + 0
+        ),
+        0
+    );
+    out_layer2 = texelFetch(
+        u_texture, 
+        ivec3 (
+            int(v_texCoords.x * u_textureResolution.x), 
+            int(v_texCoords.y * u_textureResolution.y), 
+            u_layerOffset + 1
+        ),
+        0
+    );
+    out_layer3 = texelFetch(
+        u_texture, 
+        ivec3 (
+            int(v_texCoords.x * u_textureResolution.x), 
+            int(v_texCoords.y * u_textureResolution.y), 
+            u_layerOffset + 2
+        ),
+        0
+    );
+    out_layer4 = texelFetch(
+        u_texture, 
+        ivec3 (
+            int(v_texCoords.x * u_textureResolution.x), 
+            int(v_texCoords.y * u_textureResolution.y), 
+            u_layerOffset + 3
+        ),
+        0
+    );
 }
