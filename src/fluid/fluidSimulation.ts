@@ -1,316 +1,17 @@
-import { ShaderProgram } from "../rendering/shader/shaderProgram";
-
-import vertexSource from "../glsl/fluid/shader.vertex.glsl";
-import diffusionFragmentSource from "../glsl/fluid/diffusion/shader.fragment.glsl";
-import copyTexture3DFragmentSource from "../glsl/fluid/tex-copy/shader.fragment.glsl";
-import externalForceFragmentSource from "../glsl/fluid/external-force/shader.fragment.glsl";
-import advectionFragmentSource from "../glsl/fluid/advection/shader.fragment.glsl";
-import velocityAdvectionFragmentSource from "../glsl/fluid/velocity-advection/shader.fragment.glsl";
-import pressureFragmentSource from "../glsl/fluid/pressure/shader.fragment.glsl";
-import projectionFragmentSource from "../glsl/fluid/projection/shader.fragment.glsl";
-import maskPressureFragmentSource from "../glsl/fluid/mask-pressure/shader.fragment.glsl";
-import { makeProgram } from "../rendering/shader/functions";
 import Texture3D from "../rendering/texture3D";
 import FrameBuffer from "../rendering/frameBuffer";
 import Grid from "../marching-cubes/grid";
 import { vec3 } from "gl-matrix";
-
-interface Layered3DTextureProgram {
-    setLayerOffset(offset: number);
-    use(): void;
-}
-
-export class DiffusionProgram implements Layered3DTextureProgram {
-    program: ShaderProgram;
-
-    constructor(private gl: WebGL2RenderingContext) {
-        this.program = makeProgram(gl, vertexSource, diffusionFragmentSource);
-    }
-
-    setDiffusionScale(scale: number) {
-        this.program.setUniform("u_viscosity", scale);
-    }
-
-    setGrid(grid: Texture3D) {
-        grid.bind(0);
-        this.program.setUniform("u_pressureGrid", 0);
-        this.program.setUniform("u_gridSize", [
-            grid.width,
-            grid.height,
-            grid.depth
-        ]);
-        this.program.setUniform("u_voxelStep", [
-            1.0 / grid.width,
-            1.0 / grid.height,
-            1.0 / grid.depth
-        ]);
-    }
-
-    setLayerOffset(offset: number) {
-        this.program.setUniform("u_layerOffset", offset);
-    }
-
-    setTimestep(timestep: number) {
-        this.program.setUniform("u_timestep", timestep);
-    }
-
-    use(): void {
-        this.program.use();
-    }
-}
-
-export class CopyTexture3DProgram implements Layered3DTextureProgram {
-    program: ShaderProgram;
-
-    constructor(private gl: WebGL2RenderingContext) {
-        this.program = makeProgram(
-            gl,
-            vertexSource,
-            copyTexture3DFragmentSource
-        );
-    }
-
-    use() {
-        this.program.use();
-    }
-
-    setTexture(texture: Texture3D) {
-        texture.bind(0);
-        this.program.setUniform("u_texture", 0);
-        this.program.setUniform("u_textureResolution", [
-            texture.width,
-            texture.height,
-            texture.depth
-        ]);
-    }
-
-    setLayerOffset(offset: number) {
-        this.program.setUniform("u_layerOffset", offset);
-    }
-}
-
-export class ExternalForcesProgram implements Layered3DTextureProgram {
-    program: ShaderProgram;
-
-    constructor(private gl: WebGL2RenderingContext) {
-        this.program = makeProgram(
-            gl,
-            vertexSource,
-            externalForceFragmentSource
-        );
-    }
-
-    use() {
-        this.program.use();
-    }
-
-    setTexture(texture: Texture3D) {
-        texture.bind(0);
-        this.program.setUniform("u_originalVelocityGrid", 0);
-        this.program.setUniform("u_textureResolution", [
-            texture.width,
-            texture.height,
-            texture.depth
-        ]);
-    }
-
-    setLevelSetField(texture: Texture3D) {
-        texture.bind(1);
-        this.program.setUniform("u_levelSetGrid", 1);
-    }
-
-    setLayerOffset(offset: number) {
-        this.program.setUniform("u_layerOffset", offset);
-    }
-
-    setExternalForce(force: vec3) {
-        this.program.setUniform("u_externalForce", force);
-    }
-
-    setTimestep(timestep: number) {
-        this.program.setUniform("u_timestep", timestep);
-    }
-}
-
-export class AdvectionProgram implements Layered3DTextureProgram {
-    program: ShaderProgram;
-
-    constructor(private gl: WebGL2RenderingContext) {
-        this.program = makeProgram(gl, vertexSource, advectionFragmentSource);
-    }
-
-    use() {
-        this.program.use();
-    }
-
-    setVelocityGrid(texture: Texture3D) {
-        texture.bind(0);
-        this.program.setUniform("u_velocityGrid", 0);
-        this.program.setUniform("u_textureResolution", [
-            texture.width,
-            texture.height,
-            texture.depth
-        ]);
-    }
-
-    setScalarGrid(texture: Texture3D) {
-        texture.bind(1);
-        this.program.setUniform("u_scalarGrid", 1);
-    }
-
-    setAdvectionScale(scale: number) {
-        this.program.setUniform("u_advectionScale", scale);
-    }
-
-    setTimestep(timestep: number) {
-        this.program.setUniform("u_timestep", timestep);
-    }
-
-    setLayerOffset(offset: number) {
-        this.program.setUniform("u_layerOffset", offset);
-    }
-}
-
-export class VelocityAdvectionProgram implements Layered3DTextureProgram {
-    program: ShaderProgram;
-
-    constructor(private gl: WebGL2RenderingContext) {
-        this.program = makeProgram(
-            gl,
-            vertexSource,
-            velocityAdvectionFragmentSource
-        );
-    }
-
-    use() {
-        this.program.use();
-    }
-
-    setVelocityGrid(texture: Texture3D) {
-        texture.bind(0);
-        this.program.setUniform("u_velocityGrid", 0);
-        this.program.setUniform("u_textureResolution", [
-            texture.width,
-            texture.height,
-            texture.depth
-        ]);
-    }
-
-    setTimestep(timestep: number) {
-        this.program.setUniform("u_timestep", timestep);
-    }
-
-    setLayerOffset(offset: number) {
-        this.program.setUniform("u_layerOffset", offset);
-    }
-}
-
-export class PressureProgram implements Layered3DTextureProgram {
-    program: ShaderProgram;
-
-    constructor(private gl: WebGL2RenderingContext) {
-        this.program = makeProgram(gl, vertexSource, pressureFragmentSource);
-    }
-
-    use() {
-        this.program.use();
-    }
-
-    setVelocityGrid(texture: Texture3D) {
-        texture.bind(0);
-        this.program.setUniform("u_velocityGrid", 0);
-        this.program.setUniform("u_textureResolution", [
-            texture.width,
-            texture.height,
-            texture.depth
-        ]);
-        this.program.setUniform("u_voxelStep", [
-            1.0 / texture.width,
-            1.0 / texture.height,
-            1.0 / texture.depth
-        ]);
-    }
-
-    setPressureGrid(texture: Texture3D) {
-        texture.bind(1);
-        this.program.setUniform("u_originalPressureGrid", 1);
-    }
-
-    setLevelSetGrid(texture: Texture3D) {
-        texture.bind(2);
-        this.program.setUniform("u_levelSetGrid", 2);
-    }
-
-    setLayerOffset(offset: number) {
-        this.program.setUniform("u_layerOffset", offset);
-    }
-}
-
-export class ProjectionProgram implements Layered3DTextureProgram {
-    program: ShaderProgram;
-
-    constructor(private gl: WebGL2RenderingContext) {
-        this.program = makeProgram(gl, vertexSource, projectionFragmentSource);
-    }
-
-    use() {
-        this.program.use();
-    }
-
-    setVelocityGrid(texture: Texture3D) {
-        texture.bind(0);
-        this.program.setUniform("u_velocityGrid", 0);
-        this.program.setUniform("u_textureResolution", [
-            texture.width,
-            texture.height,
-            texture.depth
-        ]);
-    }
-
-    setPressureGrid(texture: Texture3D) {
-        texture.bind(1);
-        this.program.setUniform("u_pressureGrid", 1);
-    }
-
-    setLayerOffset(offset: number) {
-        this.program.setUniform("u_layerOffset", offset);
-    }
-}
-
-export class MaskPressureProgram implements Layered3DTextureProgram {
-    program: ShaderProgram;
-
-    constructor(private gl: WebGL2RenderingContext) {
-        this.program = makeProgram(
-            gl,
-            vertexSource,
-            maskPressureFragmentSource
-        );
-    }
-
-    use() {
-        this.program.use();
-    }
-
-    setPressureGrid(texture: Texture3D) {
-        texture.bind(0);
-        this.program.setUniform("u_textureResolution", [
-            texture.width,
-            texture.height,
-            texture.depth
-        ]);
-        this.program.setUniform("u_pressureGrid", 0);
-    }
-
-    setLevelSetGrid(texture: Texture3D) {
-        texture.bind(1);
-        this.program.setUniform("u_levelSetGrid", 1);
-    }
-
-    setLayerOffset(offset: number) {
-        this.program.setUniform("u_layerOffset", offset);
-    }
-}
+import DiffusionProgram from "./program/diffusion";
+import CopyTexture3DProgram from "./program/copyTexture3D";
+import ExternalForcesProgram from "./program/externalForces";
+import AdvectionProgram from "./program/advection";
+import VelocityAdvectionProgram from "./program/velocityAdvection";
+import PressureProgram from "./program/pressure";
+import Layered3DTextureProgram from "./program/layered3DTextureProgram";
+import ProjectionProgram from "./program/projection";
+import LevelSetProgram from "./program/levelSet";
+import MaskProgram from "./program/mask";
 
 class PingPong<T> {
     private values: [T, T] = [null, null];
@@ -341,6 +42,7 @@ export default class FluidSimulation {
     pressureGrid: PingPong<Texture3D>;
     velocityGrid: PingPong<Texture3D>;
     levelSetGrid: PingPong<Texture3D>;
+    massGrid: PingPong<Texture3D>;
     framebuffer: FrameBuffer;
 
     vao: WebGLVertexArrayObject;
@@ -352,14 +54,16 @@ export default class FluidSimulation {
     private velocityAdvection: VelocityAdvectionProgram;
     private pressure: PressureProgram;
     private projection: ProjectionProgram;
-    private maskPressure: MaskPressureProgram;
+    private levelSet: LevelSetProgram;
+    private mask: MaskProgram;
+    private skipFrames: number = 0;
+    // private maskPressure: MaskPressureProgram;
 
     private timeAccumulator: number = 0.0;
     private drawBuffers = [0, 1, 2, 3];
 
     diffusionScale: number = 0.2;
-    diffusionSteps: number = 2;
-    advectionScale: number = 1.0;
+    diffusionSteps: number = 10;
     gravity: vec3 = vec3.fromValues(0.0, -500.0, 0.0);
 
     constructor(
@@ -378,7 +82,9 @@ export default class FluidSimulation {
         this.velocityAdvection = new VelocityAdvectionProgram(this.gl);
         this.pressure = new PressureProgram(this.gl);
         this.projection = new ProjectionProgram(this.gl);
-        this.maskPressure = new MaskPressureProgram(this.gl);
+        this.levelSet = new LevelSetProgram(this.gl);
+        this.mask = new MaskProgram(this.gl);
+        // this.maskPressure = new MaskPressureProgram(this.gl);
 
         this.framebuffer = new FrameBuffer(this.gl, this.xSize, this.ySize);
 
@@ -392,7 +98,7 @@ export default class FluidSimulation {
 
     private setupPressureGrid(): void {
         let textures = [];
-        for (let i = 0; i < 4; i++) {
+        for (let i = 0; i < 6; i++) {
             textures.push(
                 new Texture3D(this.gl, {
                     width: this.xSize,
@@ -411,7 +117,7 @@ export default class FluidSimulation {
                     width: this.xSize,
                     height: this.ySize,
                     depth: this.zSize,
-                    internalFormat: this.gl.RGBA16F,
+                    internalFormat: this.gl.RGBA32F,
                     format: this.gl.RGBA,
                     minFilter: this.gl.LINEAR,
                     magFilter: this.gl.LINEAR,
@@ -422,7 +128,8 @@ export default class FluidSimulation {
 
         this.pressureGrid = new PingPong(textures[0], textures[1]);
         this.levelSetGrid = new PingPong(textures[2], textures[3]);
-        this.velocityGrid = new PingPong(textures[4], textures[5]);
+        this.massGrid = new PingPong(textures[4], textures[5]);
+        this.velocityGrid = new PingPong(textures[6], textures[7]);
     }
 
     private setupPass(): void {
@@ -515,197 +222,140 @@ export default class FluidSimulation {
         }
     }
 
-    private applyPressureDiffusion() {
+    private computeIntoPingPong3DTexture<T extends Layered3DTextureProgram>(
+        buffer: PingPong<Texture3D>,
+        program: T,
+        onBeforeDrawLayer: (program: T) => void
+    ) {
+        this.drawInto3DTexture(buffer.other, program, onBeforeDrawLayer);
+        this.gl.flush();
+        this.gl.finish();
+        buffer.flip();
+        this.copyTexture3D(buffer.current, buffer.other, this.framebuffer);
+        this.gl.flush();
+        this.gl.finish();
+        buffer.flip();
+    }
+
+    private applyDiffusion() {
         for (
             let diffuseStep = 0;
             diffuseStep < this.diffusionSteps;
             diffuseStep++
         ) {
-            this.drawInto3DTexture(
-                this.velocityGrid.other,
+            this.computeIntoPingPong3DTexture(
+                this.velocityGrid,
                 this.pressureDiffusion,
                 p => {
                     p.setGrid(this.velocityGrid.current);
-                    p.setDiffusionScale(this.diffusionScale);
+                    p.setViscosity(this.diffusionScale);
                     p.setTimestep(this.timestep);
                 }
             );
-
-            // current is the previous, we've drawn into other
-            this.velocityGrid.flip();
-
-            // now current is the new texture, other is the old
-            // copy current into old so that they are the same
-            this.copyTexture3D(
-                this.velocityGrid.current,
-                this.velocityGrid.other,
-                this.framebuffer
-            );
-
-            this.velocityGrid.flip();
         }
     }
 
-    private applyVelocityDiffusion() {}
-
     private applyExternalForces() {
-        this.drawInto3DTexture(
-            this.velocityGrid.other,
+        this.computeIntoPingPong3DTexture(
+            this.velocityGrid,
             this.externalForces,
             p => {
-                p.setTexture(this.velocityGrid.current);
-                p.setLevelSetField(this.levelSetGrid.current);
-                p.setExternalForce(this.gravity);
+                p.setGrid(this.velocityGrid.current);
+                p.setMassGrid(this.massGrid.current);
+                p.setForce(this.gravity);
                 p.setTimestep(this.timestep);
             }
         );
-
-        // current is the previous, we've drawn into other
-        this.velocityGrid.flip();
-
-        // now current is the new texture, other is the old
-        // copy current into old so that they are the same
-        this.copyTexture3D(
-            this.velocityGrid.current,
-            this.velocityGrid.other,
-            this.framebuffer
-        );
-
-        this.velocityGrid.flip();
     }
 
     private advectVelocityField() {
-        this.drawInto3DTexture(
-            this.velocityGrid.other,
+        this.computeIntoPingPong3DTexture(
+            this.velocityGrid,
             this.velocityAdvection,
             p => {
-                p.setVelocityGrid(this.velocityGrid.current);
+                p.setGrid(this.velocityGrid.current);
                 p.setTimestep(this.timestep);
             }
         );
-
-        this.velocityGrid.flip();
-
-        this.copyTexture3D(
-            this.velocityGrid.current,
-            this.velocityGrid.other,
-            this.framebuffer
-        );
-
-        this.velocityGrid.flip();
     }
 
-    private advectLevelSetField() {
-        this.drawInto3DTexture(this.levelSetGrid.other, this.advection, p => {
+    private advectMassField() {
+        this.computeIntoPingPong3DTexture(this.massGrid, this.advection, p => {
+            p.setGrid(this.massGrid.current);
             p.setVelocityGrid(this.velocityGrid.current);
-            p.setScalarGrid(this.levelSetGrid.current);
             p.setTimestep(this.timestep);
         });
-
-        this.levelSetGrid.flip();
-
-        this.copyTexture3D(
-            this.levelSetGrid.current,
-            this.levelSetGrid.other,
-            this.framebuffer
-        );
-
-        this.levelSetGrid.flip();
     }
-
-    private advectPressureField() {}
 
     private computePressureField() {
+        // this.maskPressureField();
         for (let i = 0; i < 10; i++) {
-            this.drawInto3DTexture(
-                this.pressureGrid.other,
+            // this.maskPressureField();
+            this.computeIntoPingPong3DTexture(
+                this.pressureGrid,
                 this.pressure,
                 p => {
+                    p.setGrid(this.pressureGrid.current);
                     p.setVelocityGrid(this.velocityGrid.current);
-                    p.setPressureGrid(this.pressureGrid.current);
-                    p.setLevelSetGrid(this.levelSetGrid.current);
+                    p.setMassGrid(this.massGrid.current);
                 }
             );
-
-            // current is the previous, we've drawn into other
-            this.pressureGrid.flip();
-
-            // now current is the new texture, other is the old
-            // copy current into old so that they are the same
-            this.copyTexture3D(
-                this.pressureGrid.current,
-                this.pressureGrid.other,
-                this.framebuffer
-            );
-
-            this.pressureGrid.flip();
         }
-    }
-
-    private maskPressureField() {
-        this.drawInto3DTexture(
-            this.velocityGrid.other,
-            this.maskPressure,
-            p => {
-                p.setLevelSetGrid(this.levelSetGrid.current);
-                p.setPressureGrid(this.velocityGrid.current);
-            }
-        );
-
-        // current is the previous, we've drawn into other
-        this.velocityGrid.flip();
-
-        // now current is the new texture, other is the old
-        // copy current into old so that they are the same
-        this.copyTexture3D(
-            this.velocityGrid.current,
-            this.velocityGrid.other,
-            this.framebuffer
-        );
-
-        this.velocityGrid.flip();
     }
 
     private projectVelocity() {
-        this.drawInto3DTexture(this.velocityGrid.other, this.projection, p => {
-            p.setVelocityGrid(this.velocityGrid.current);
-            p.setPressureGrid(this.pressureGrid.current);
-        });
-
-        // current is the previous, we've drawn into other
-        this.velocityGrid.flip();
-
-        // now current is the new texture, other is the old
-        // copy current into old so that they are the same
-        this.copyTexture3D(
-            this.velocityGrid.current,
-            this.velocityGrid.other,
-            this.framebuffer
+        this.computeIntoPingPong3DTexture(
+            this.velocityGrid,
+            this.projection,
+            p => {
+                p.setGrid(this.velocityGrid.current);
+                p.setPressureGrid(this.pressureGrid.current);
+            }
         );
-
-        this.velocityGrid.flip();
     }
 
+    private calculateLevelSet() {
+        this.computeIntoPingPong3DTexture(
+            this.levelSetGrid,
+            this.levelSet,
+            p => {
+                p.setGrid(this.massGrid.current);
+            }
+        );
+    }
+
+    private maskPressureField() {
+        this.computeIntoPingPong3DTexture(this.pressureGrid, this.mask, p => {
+            p.setMassGrid(this.massGrid.current);
+        });
+    }
+
+    private maskVelocityField() {
+        this.computeIntoPingPong3DTexture(this.velocityGrid, this.mask, p => {
+            p.setMassGrid(this.massGrid.current);
+        });
+    }
+
+    private skippedFrames: number = 0;
+
     update(delta: number): void {
-        this.timeAccumulator += delta > this.timestep ? this.timestep : delta;
+
+        if (this.skippedFrames++ < this.skipFrames) {
+            return;
+        }
+        this.skippedFrames = 0;
 
         this.gl.bindVertexArray(this.vao);
 
-        while (this.timeAccumulator >= this.timestep) {
-            this.advectLevelSetField();
-            
-            this.applyExternalForces();
-            this.advectVelocityField();
-            this.computePressureField();
-            this.applyPressureDiffusion();
-            this.projectVelocity();
-            // this.maskPressureField();
+        this.advectVelocityField();
+        this.applyExternalForces();
+        this.applyDiffusion();
+        this.computePressureField();
+        this.projectVelocity();
 
-            /* this.levelSetGrid.flip ()
-            this.copyTexture3D (this.levelSetGrid.current, this.levelSetGrid.other, this.framebuffer)
-            this.levelSetGrid.flip () */
-            this.timeAccumulator -= this.timestep;
-        }
+        this.advectMassField();
+
+        this.calculateLevelSet();
 
         this.framebuffer.unbind();
         this.framebuffer.resetViewport();
@@ -729,7 +379,7 @@ export default class FluidSimulation {
             fb.applyViewport();
 
             this.textureCopy.use();
-            this.textureCopy.setTexture(source);
+            this.textureCopy.setGrid(source);
             this.textureCopy.setLayerOffset(pass * 4);
             this.gl.drawArrays(this.gl.TRIANGLES, 0, 6);
         }

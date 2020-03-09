@@ -3,12 +3,14 @@
 precision highp float;
 precision highp sampler3D;
 
-uniform sampler3D u_originalPressureGrid;
+uniform sampler3D u_grid;
 uniform sampler3D u_velocityGrid;
-uniform sampler3D u_levelSetGrid;
-uniform vec3 u_textureResolution;
+uniform sampler3D u_massGrid;
+uniform vec3 u_gridSize;
 uniform int u_layerOffset;
-uniform vec3 u_voxelStep;
+uniform vec3 u_stepX;
+uniform vec3 u_stepY;
+uniform vec3 u_stepZ;
 
 layout(location = 0) out vec4 out_layer1;
 layout(location = 1) out vec4 out_layer2;
@@ -21,52 +23,69 @@ const float MAX_PRESSURE = 200.0;
 
 float divergence (in vec3 coords) {
 
-    float dx = texture(u_velocityGrid, coords + vec3(u_voxelStep.x, 0.0, 0.0)).x - texture(u_velocityGrid, coords - vec3(u_voxelStep.x, 0.0, 0.0)).x;
-    float dy = texture(u_velocityGrid, coords + vec3(0.0, u_voxelStep.y, 0.0)).y - texture(u_velocityGrid, coords - vec3(0.0, u_voxelStep.y, 0.0)).y;
-    float dz = texture(u_velocityGrid, coords + vec3(0.0, 0.0, u_voxelStep.z)).z - texture(u_velocityGrid, coords - vec3(0.0, 0.0, u_voxelStep.z)).z;
+    float dx = texture(u_velocityGrid, coords + u_stepX).x - texture(u_velocityGrid, coords - u_stepX).x;
+    float dy = texture(u_velocityGrid, coords + u_stepY).y - texture(u_velocityGrid, coords - u_stepY).y;
+    float dz = texture(u_velocityGrid, coords + u_stepZ).z - texture(u_velocityGrid, coords - u_stepZ).z;
 
     return 0.5 * (dx + dy + dz);
 
 }
 
 vec4 computePressure (in vec3 coords) {
-/*
-    float level = texture(u_levelSetGrid, coords).x;
-    if (level > 30.0) {
+
+    /*
+    float level = texture(u_massGrid, coords).x;
+    if (level < 0.0) {
         return vec4(0.0);
     }*/
 
     float div = divergence (coords);
 
-    vec3 stepX = vec3(1.0 / u_textureResolution.x, 0.0, 0.0);
-    vec3 stepY = vec3(0.0, 1.0 / u_textureResolution.y, 0.0);
-    vec3 stepZ = vec3(0.0, 0.0, 1.0 / u_textureResolution.z);
+    float pLeft = texture(u_grid, coords - u_stepX).x;
+    float pRight = texture(u_grid, coords + u_stepX).x;
+    float pTop = texture(u_grid, coords - u_stepY).x;
+    float pBottom = texture(u_grid, coords + u_stepY).x;
+    float pFront = texture(u_grid, coords - u_stepZ).x;
+    float pRear = texture(u_grid, coords + u_stepZ).x;
+    float pCenter = texture(u_grid, coords).x;
 
-    if (abs(coords.x) <= stepX.x) {
-        return texture(u_originalPressureGrid, coords + stepX);
-    } else if (abs (1.0 - coords.x) <= stepX.x) {
-        return texture(u_originalPressureGrid, coords - stepX);
+    if (abs(coords.x) <= u_stepX.x) {
+        // return /* texture(u_grid, coords + u_stepX) */ vec4(0.0);
+        pLeft = pCenter;
+        // return vec4(0.0);
+        // return vec4(pRight);
+    } else if (abs (1.0 - coords.x) <= u_stepX.x) {
+        // return /* texture(u_grid, coords - u_stepX) */ vec4(0.0);
+        pRight = pCenter;
+        // return vec4(0.0);
+        // return vec4(pLeft);
     }
 
-    if (abs(coords.y) <= stepY.y) {
-        return texture(u_originalPressureGrid, coords + stepY);
-    } else if (abs(1.0 - coords.y) <= stepY.y) {
-        return texture(u_originalPressureGrid, coords - stepY);
+    if (abs(coords.y) <= u_stepY.y) {
+        // return /* texture(u_grid, coords - u_stepX) */ vec4(0.0);
+        pTop = pCenter;
+        // return vec4(0.0);
+        // return vec4(pTop);
+    } else if (abs(1.0 - coords.y) <= u_stepY.y) {
+        // return /* texture(u_grid, coords - u_stepX) */ vec4(0.0);
+        pBottom = pCenter;
+        // return vec4(0.0);
+        // return vec4(pBottom);
     }
 
-    if (abs(coords.z) <= stepZ.z) {
-        return texture(u_originalPressureGrid, coords + stepZ);
-    } else if (abs(1.0 - coords.z) <= stepZ.z) {
-        return texture(u_originalPressureGrid, coords - stepZ);
+    if (abs(coords.z) <= u_stepZ.z) {
+        // return /* texture(u_grid, coords - u_stepX) */ vec4(0.0);
+        pFront = pCenter;
+        // return vec4(0.0);
+        // return vec4(pRear);
+    } else if (abs(1.0 - coords.z) <= u_stepZ.z) {
+        // return /* texture(u_grid, coords - u_stepX) */ vec4(0.0);
+        pRear = pCenter;
+        // return vec4(0.0);
+        // return vec4(pFront);
     }
 
-    float pLeft = texture(u_originalPressureGrid, coords - stepX).x;
-    float pRight = texture(u_originalPressureGrid, coords + stepX).x;
-    float pTop = texture(u_originalPressureGrid, coords - stepY).x;
-    float pBottom = texture(u_originalPressureGrid, coords + stepY).x;
-    float pFront = texture(u_originalPressureGrid, coords - stepZ).x;
-    float pRear = texture(u_originalPressureGrid, coords + stepZ).x;
-
+    float mass = texture(u_massGrid, coords).x;
     float pressure = (1.0 / 6.0) * ( pLeft + pRight + pTop + pBottom + pFront + pRear - div );
     // pressure = clamp(pressure, -MAX_PRESSURE, MAX_PRESSURE);
 
@@ -76,9 +95,9 @@ vec4 computePressure (in vec3 coords) {
 
 void main () {
 
-    out_layer1 = computePressure(vec3 (v_texCoords.x, v_texCoords.y, (float(u_layerOffset) + 0.5) / u_textureResolution.z));
-    out_layer2 = computePressure(vec3 (v_texCoords.x, v_texCoords.y, (float(u_layerOffset) + 1.5) / u_textureResolution.z));
-    out_layer3 = computePressure(vec3 (v_texCoords.x, v_texCoords.y, (float(u_layerOffset) + 2.5) / u_textureResolution.z));
-    out_layer4 = computePressure(vec3 (v_texCoords.x, v_texCoords.y, (float(u_layerOffset) + 3.5) / u_textureResolution.z));
+    out_layer1 = computePressure(vec3 (v_texCoords.x, v_texCoords.y, (float(u_layerOffset) + 0.5) / u_gridSize.z));
+    out_layer2 = computePressure(vec3 (v_texCoords.x, v_texCoords.y, (float(u_layerOffset) + 1.5) / u_gridSize.z));
+    out_layer3 = computePressure(vec3 (v_texCoords.x, v_texCoords.y, (float(u_layerOffset) + 2.5) / u_gridSize.z));
+    out_layer4 = computePressure(vec3 (v_texCoords.x, v_texCoords.y, (float(u_layerOffset) + 3.5) / u_gridSize.z));
 
 }

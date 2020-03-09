@@ -3,8 +3,8 @@
 precision highp float;
 precision highp sampler3D;
 
-uniform sampler3D u_texture;
-uniform vec3 u_textureResolution;
+uniform sampler3D u_grid;
+uniform vec3 u_gridSize;
 uniform int u_layerOffset;
 
 layout(location = 0) out vec4 out_layer1;
@@ -17,37 +17,37 @@ in vec2 v_texCoords;
 void main () {
 
     out_layer1 = texelFetch(
-        u_texture, 
+        u_grid, 
         ivec3 (
-            int(v_texCoords.x * u_textureResolution.x), 
-            int(v_texCoords.y * u_textureResolution.y), 
+            int(v_texCoords.x * u_gridSize.x), 
+            int(v_texCoords.y * u_gridSize.y), 
             u_layerOffset + 0
         ),
         0
     );
     out_layer2 = texelFetch(
-        u_texture, 
+        u_grid, 
         ivec3 (
-            int(v_texCoords.x * u_textureResolution.x), 
-            int(v_texCoords.y * u_textureResolution.y), 
+            int(v_texCoords.x * u_gridSize.x), 
+            int(v_texCoords.y * u_gridSize.y), 
             u_layerOffset + 1
         ),
         0
     );
     out_layer3 = texelFetch(
-        u_texture, 
+        u_grid, 
         ivec3 (
-            int(v_texCoords.x * u_textureResolution.x), 
-            int(v_texCoords.y * u_textureResolution.y), 
+            int(v_texCoords.x * u_gridSize.x), 
+            int(v_texCoords.y * u_gridSize.y), 
             u_layerOffset + 2
         ),
         0
     );
     out_layer4 = texelFetch(
-        u_texture, 
+        u_grid, 
         ivec3 (
-            int(v_texCoords.x * u_textureResolution.x), 
-            int(v_texCoords.y * u_textureResolution.y), 
+            int(v_texCoords.x * u_gridSize.x), 
+            int(v_texCoords.y * u_gridSize.y), 
             u_layerOffset + 3
         ),
         0

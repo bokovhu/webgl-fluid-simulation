@@ -9,6 +9,23 @@ import FluidSimulation from "./fluid/fluidSimulation";
 import Grid from "./marching-cubes/grid";
 import FluidDebugger from "./fluid/fluidDebugger";
 
+export interface DebugOptions {
+    drawPressurePoints: boolean;
+    drawMassPoints: boolean;
+    drawVelocityLines: boolean;
+    disableMarchingCubesOutput: boolean;
+    scaleVelocityLinesByTimescale: boolean;
+    velocityLineScale: number;
+    lowPressureValue: number;
+    highPressureValue: number;
+    velocityLineStrength: number;
+}
+
+export interface FluidInitOptions {
+    mass: number;
+    sphereRadius: number;
+}
+
 export default class Main {
     private gui: GameGUI;
     private canvas: HTMLCanvasElement;
@@ -30,6 +47,23 @@ export default class Main {
     private modelMatrix: mat4 = mat4.create();
     public fluidSimulation: FluidSimulation;
     private fluidDebugger: FluidDebugger;
+
+    private debugOptions: DebugOptions = {
+        drawPressurePoints: false,
+        drawMassPoints: false,
+        drawVelocityLines: false,
+        disableMarchingCubesOutput: false,
+        scaleVelocityLinesByTimescale: false,
+        velocityLineScale: 0.5,
+        lowPressureValue: 0.0,
+        highPressureValue: 10.0,
+        velocityLineStrength: 0.05
+    };
+
+    private fluidInitOptions: FluidInitOptions = {
+        mass: 1.0,
+        sphereRadius: 24.0
+    };
 
     constructor() {}
 
@@ -64,9 +98,9 @@ export default class Main {
 
     initFluidSimulation() {
         this.grid = {
-            xSize: 64,
-            ySize: 64,
-            zSize: 64,
+            xSize: 128,
+            ySize: 128,
+            zSize: 128,
             xScale: 1.0 / 12.0,
             yScale: 1.0 / 12.0,
             zScale: 1.0 / 12.0,
@@ -76,7 +110,7 @@ export default class Main {
         this.fluidSimulation = new FluidSimulation(
             this.gl,
             this.grid,
-            1.0 / 60.0
+            1.0 / 120.0
         );
         this.grid.texture = this.fluidSimulation.pressureGridTexture;
 
@@ -97,51 +131,60 @@ export default class Main {
     }
 
     resetSimulationState() {
-        let fb = new Float32Array(64 * 64 * 64);
+        let fb = new Float32Array(
+            this.grid.xSize * this.grid.ySize * this.grid.zSize
+        );
         let ptr = 0;
 
-        let spheres: { center: vec3, radius: number }[] = [
+        let spheres: { center: vec3; radius: number }[] = [
             {
-                center: vec3.fromValues(0.0, -10.0, 0.0),
-                radius: 24.0
-            },
-            /*{
-                center: vec3.fromValues(-4.5, -5.0, 5.4),
-                radius: 10.0
-            },
-            {
-                center: vec3.fromValues(5.6, 0.0, -8.2),
-                radius: 6.3
-            }*/
-        ]
+                center: vec3.fromValues(0.0, 8.0, 0.0),
+                radius: this.fluidInitOptions.sphereRadius
+            }
+        ];
 
-        for (let z = 0; z < 64; z++) {
-            for (let y = 0; y < 64; y++) {
-                for (let x = 0; x < 64; x++) {
+        for (let z = 0; z < this.grid.zSize; z++) {
+            for (let y = 0; y < this.grid.zSize; y++) {
+                for (let x = 0; x < this.grid.xSize; x++) {
                     let pos = vec3.fromValues(x, y, z);
                     // vec3.scale(pos, pos, 32.0);
-                    vec3.sub(pos, pos, vec3.fromValues(32.0, 32.0, 32.0));
+                    vec3.sub(
+                        pos,
+                        pos,
+                        vec3.fromValues(
+                            this.grid.xSize / 2,
+                            this.grid.ySize / 2,
+                            this.grid.zSize / 2
+                        )
+                    );
                     let val = 128.0;
                     spheres.forEach(sp => {
                         let d = vec3.dist(pos, sp.center) - sp.radius;
                         val = Math.min(val, d);
                     });
-                    
-                    fb[ptr++] = val;
+
+                    if (val <= 0.0) {
+                        fb[ptr++] = this.fluidInitOptions.mass;
+                    } else {
+                        fb[ptr++] = 0.0;
+                    }
+
+                    // fb[ptr++] = val;
                 }
             }
         }
 
-        this.fluidSimulation.levelSetTexture.upload(fb);
-        this.fluidSimulation.otherLevelSetTexture.upload(fb);
+        this.fluidSimulation.massGrid.current.upload(fb);
+        this.fluidSimulation.massGrid.other.upload(fb);
 
-        fb = new Float32Array(128 * 128 * 128 * 4);
+        fb = new Float32Array(
+            this.grid.xSize * this.grid.ySize * this.grid.zSize * 4
+        );
         ptr = 0;
 
-        for (let z = 0; z < 128; z++) {
-            for (let y = 0; y < 128; y++) {
-                for (let x = 0; x < 128; x++) {
-                    let pos = vec3.fromValues(x / 128.0, y / 128.0, z / 128.0);
+        for (let z = 0; z < this.grid.zSize; z++) {
+            for (let y = 0; y < this.grid.ySize; y++) {
+                for (let x = 0; x < this.grid.xSize; x++) {
                     let vel = vec3.fromValues(0, 0, 0);
                     fb[ptr++] = vel[0];
                     fb[ptr++] = vel[1];
@@ -153,6 +196,21 @@ export default class Main {
 
         this.fluidSimulation.velocityGridTexture.upload(fb);
         this.fluidSimulation.otherVelocityGridTexture.upload(fb);
+
+        ptr = 0;
+        fb = new Float32Array(
+            this.grid.xSize * this.grid.ySize * this.grid.zSize
+        );
+        for (let z = 0; z < this.grid.zSize; z++) {
+            for (let y = 0; y < this.grid.ySize; y++) {
+                for (let x = 0; x < this.grid.xSize; x++) {
+                    fb[ptr++] = 0.0;
+                }
+            }
+        }
+
+        this.fluidSimulation.pressureGrid.current.upload(fb);
+        this.fluidSimulation.pressureGrid.other.upload(fb);
     }
 
     initProperties() {
@@ -273,25 +331,38 @@ export default class Main {
 
         this.grid.texture = this.fluidSimulation.levelSetTexture;
 
-        this.gpuMarcher.draw(
-            bp => {
-                bp.setCamera(this.camera);
-                bp.setLight(this.light);
-                bp.setMaterial(this.material);
-                bp.setModel(this.modelMatrix);
-            },
-            this.grid,
-            [this.resolution[0], this.resolution[1]],
-            -0.05,
-            this.grid.texture
-        );
+        if (!this.debugOptions.disableMarchingCubesOutput) {
+            this.gpuMarcher.draw(
+                bp => {
+                    bp.setCamera(this.camera);
+                    bp.setLight(this.light);
+                    bp.setMaterial(this.material);
+                    bp.setModel(this.modelMatrix);
+                },
+                this.grid,
+                [this.resolution[0], this.resolution[1]],
+                -0.05,
+                this.grid.texture
+            );
+        }
 
-        /*
-        this.fluidDebugger.draw (
-            this.camera.projection,
-            this.camera.view,
-            this.fluidSimulation.pressureGridTexture
-        );*/
-        
+        this.fluidDebugger.draw({
+            proj: this.camera.projection,
+            view: this.camera.view,
+            pressureGrid: this.debugOptions.drawPressurePoints
+                ? this.fluidSimulation.pressureGrid.current
+                : this.fluidSimulation.massGrid.current,
+            velocityGrid: this.fluidSimulation.velocityGrid.current,
+            drawPressure:
+                this.debugOptions.drawPressurePoints ||
+                this.debugOptions.drawMassPoints,
+            drawVelocity: this.debugOptions.drawVelocityLines,
+            timestep: 1.0 / 60.0,
+            scaleByTimestep: this.debugOptions.scaleVelocityLinesByTimescale,
+            velocityScale: this.debugOptions.velocityLineScale,
+            lowPressureValue: this.debugOptions.lowPressureValue,
+            highPressureValue: this.debugOptions.highPressureValue,
+            velocityLineStrength: this.debugOptions.velocityLineStrength
+        });
     }
 }

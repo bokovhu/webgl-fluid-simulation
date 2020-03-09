@@ -46,6 +46,9 @@ export class ShaderProgram {
         }
         this.uniformSetters[name].apply(value);
     }
+    hasUniform(name: string): boolean {
+        return name in this.uniformInformation;
+    }
     getUniforms(): WebGLActiveInfo[] {
         return Object.keys(this.uniformInformation).map((key) => this.uniformInformation[key]);
     }
