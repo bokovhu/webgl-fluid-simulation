@@ -21,7 +21,7 @@ vec4 applyForce (in vec3 coords) {
 
     float levelSetValue = texture(u_levelSetGrid, coords).x;
     // No velocity outside the fluid
-    if (levelSetValue > 0.05) return vec4(0.0);
+    if (levelSetValue > 0.0) return vec4(0.0);
 
     return texture (u_originalVelocityGrid, coords)
         + vec4(u_externalForce, 0.0) * u_timestep;

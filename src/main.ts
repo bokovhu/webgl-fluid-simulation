@@ -64,9 +64,9 @@ export default class Main {
 
     initFluidSimulation() {
         this.grid = {
-            xSize: 128,
-            ySize: 128,
-            zSize: 128,
+            xSize: 64,
+            ySize: 64,
+            zSize: 64,
             xScale: 1.0 / 12.0,
             yScale: 1.0 / 12.0,
             zScale: 1.0 / 12.0,
@@ -97,17 +97,36 @@ export default class Main {
     }
 
     resetSimulationState() {
-        let fb = new Float32Array(128 * 128 * 128);
+        let fb = new Float32Array(64 * 64 * 64);
         let ptr = 0;
 
-        for (let z = 0; z < 128; z++) {
-            for (let y = 0; y < 128; y++) {
-                for (let x = 0; x < 128; x++) {
-                    let pos = vec3.fromValues(x / 128.0, y / 128.0, z / 128.0);
-                    vec3.scale(pos, pos, 32.0);
-                    vec3.sub(pos, pos, vec3.fromValues(16.0, 16.0, 16.0));
-                    let val =
-                        vec3.dist(pos, vec3.fromValues(0.0, 0.0, 0.0)) - 8.0;
+        let spheres: { center: vec3, radius: number }[] = [
+            {
+                center: vec3.fromValues(0.0, -10.0, 0.0),
+                radius: 24.0
+            },
+            /*{
+                center: vec3.fromValues(-4.5, -5.0, 5.4),
+                radius: 10.0
+            },
+            {
+                center: vec3.fromValues(5.6, 0.0, -8.2),
+                radius: 6.3
+            }*/
+        ]
+
+        for (let z = 0; z < 64; z++) {
+            for (let y = 0; y < 64; y++) {
+                for (let x = 0; x < 64; x++) {
+                    let pos = vec3.fromValues(x, y, z);
+                    // vec3.scale(pos, pos, 32.0);
+                    vec3.sub(pos, pos, vec3.fromValues(32.0, 32.0, 32.0));
+                    let val = 128.0;
+                    spheres.forEach(sp => {
+                        let d = vec3.dist(pos, sp.center) - sp.radius;
+                        val = Math.min(val, d);
+                    });
+                    
                     fb[ptr++] = val;
                 }
             }
@@ -272,7 +291,7 @@ export default class Main {
             this.camera.projection,
             this.camera.view,
             this.fluidSimulation.pressureGridTexture
-        );
-        */
+        );*/
+        
     }
 }

@@ -22,21 +22,21 @@ vec4 advect (in vec3 coords) {
     vec3 stepZ = vec3(0.0, 0.0, 1.0 / u_textureResolution.z);
 
     if (abs(coords.x) <= stepX.x) {
-        return -2.0 * texture(u_velocityGrid, coords + stepX);
+        return -1.0 * texture(u_velocityGrid, coords + stepX);
     } else if (abs (1.0 - coords.x) <= stepX.x + 0.01) {
-        return -2.0 * texture(u_velocityGrid, coords - stepX);
+        return -1.0 * texture(u_velocityGrid, coords - stepX);
     }
 
     if (abs(coords.y) <= stepY.y) {
-        return -2.0 * texture(u_velocityGrid, coords + stepY);
+        return -1.0 * texture(u_velocityGrid, coords + stepY);
     } else if (abs(1.0 - coords.y) <= stepY.y + 0.01) {
-        return -2.0 * texture(u_velocityGrid, coords - stepY);
+        return -1.0 * texture(u_velocityGrid, coords - stepY);
     }
 
     if (abs(coords.z) <= stepZ.z) {
-        return -2.0 * texture(u_velocityGrid, coords + stepZ);
+        return -1.0 * texture(u_velocityGrid, coords + stepZ);
     } else if (abs(1.0 - coords.z) <= stepZ.z) {
-        return -2.0 * texture(u_velocityGrid, coords - stepZ);
+        return -1.0 * texture(u_velocityGrid, coords - stepZ);
     }
 
     vec3 p = (coords * u_textureResolution) 

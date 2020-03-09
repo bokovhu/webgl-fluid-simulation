@@ -61,7 +61,7 @@ void main () {
 
     // This calculation works in voxel space, not grid space
     // Must discard the last pixels of each row, column and sheet
-    if (1.0 - xCoord <= u_gridResolutionReciprocal.x) {
+    /*if (1.0 - xCoord <= u_gridResolutionReciprocal.x) {
         discard;
     }
     if (1.0 - yCoord <= u_gridResolutionReciprocal.y) {
@@ -69,7 +69,7 @@ void main () {
     }
     if (1.0 - zCoord <= u_gridResolutionReciprocal.z) {
         discard;
-    }
+    }*/
 
     vec3 baseGridCoords = vec3 (xCoord, yCoord, zCoord);
 

@@ -28,7 +28,7 @@ export class DiffusionProgram implements Layered3DTextureProgram {
     }
 
     setDiffusionScale(scale: number) {
-        this.program.setUniform("u_diffusionScale", scale);
+        this.program.setUniform("u_viscosity", scale);
     }
 
     setGrid(grid: Texture3D) {
@@ -236,6 +236,11 @@ export class PressureProgram implements Layered3DTextureProgram {
         this.program.setUniform("u_originalPressureGrid", 1);
     }
 
+    setLevelSetGrid(texture: Texture3D) {
+        texture.bind(2);
+        this.program.setUniform("u_levelSetGrid", 2);
+    }
+
     setLayerOffset(offset: number) {
         this.program.setUniform("u_layerOffset", offset);
     }
@@ -352,10 +357,10 @@ export default class FluidSimulation {
     private timeAccumulator: number = 0.0;
     private drawBuffers = [0, 1, 2, 3];
 
-    diffusionScale: number = 1.0;
+    diffusionScale: number = 0.2;
     diffusionSteps: number = 2;
     advectionScale: number = 1.0;
-    gravity: vec3 = vec3.fromValues(0.0, -50.0, 0.0);
+    gravity: vec3 = vec3.fromValues(0.0, -500.0, 0.0);
 
     constructor(
         private gl: WebGL2RenderingContext,
@@ -517,27 +522,27 @@ export default class FluidSimulation {
             diffuseStep++
         ) {
             this.drawInto3DTexture(
-                this.pressureGrid.other,
+                this.velocityGrid.other,
                 this.pressureDiffusion,
                 p => {
-                    p.setGrid(this.pressureGrid.current);
+                    p.setGrid(this.velocityGrid.current);
                     p.setDiffusionScale(this.diffusionScale);
                     p.setTimestep(this.timestep);
                 }
             );
 
             // current is the previous, we've drawn into other
-            this.pressureGrid.flip();
+            this.velocityGrid.flip();
 
             // now current is the new texture, other is the old
             // copy current into old so that they are the same
             this.copyTexture3D(
-                this.pressureGrid.current,
-                this.pressureGrid.other,
+                this.velocityGrid.current,
+                this.velocityGrid.other,
                 this.framebuffer
             );
 
-            this.pressureGrid.flip();
+            this.velocityGrid.flip();
         }
     }
 
@@ -618,6 +623,7 @@ export default class FluidSimulation {
                 p => {
                     p.setVelocityGrid(this.velocityGrid.current);
                     p.setPressureGrid(this.pressureGrid.current);
+                    p.setLevelSetGrid(this.levelSetGrid.current);
                 }
             );
 
@@ -637,28 +643,6 @@ export default class FluidSimulation {
     }
 
     private maskPressureField() {
-        this.drawInto3DTexture(
-            this.pressureGrid.other,
-            this.maskPressure,
-            p => {
-                p.setLevelSetGrid(this.levelSetGrid.current);
-                p.setPressureGrid(this.pressureGrid.current);
-            }
-        );
-
-        // current is the previous, we've drawn into other
-        this.pressureGrid.flip();
-
-        // now current is the new texture, other is the old
-        // copy current into old so that they are the same
-        this.copyTexture3D(
-            this.pressureGrid.current,
-            this.pressureGrid.other,
-            this.framebuffer
-        );
-
-        this.pressureGrid.flip();
-
         this.drawInto3DTexture(
             this.velocityGrid.other,
             this.maskPressure,
@@ -709,16 +693,13 @@ export default class FluidSimulation {
 
         while (this.timeAccumulator >= this.timestep) {
             this.advectLevelSetField();
-
+            
             this.applyExternalForces();
             this.advectVelocityField();
-            // this.applyVelocityDiffusion ();
-
             this.computePressureField();
-            this.applyPressureDiffusion ();
+            this.applyPressureDiffusion();
             this.projectVelocity();
-
-            this.maskPressureField();
+            // this.maskPressureField();
 
             /* this.levelSetGrid.flip ()
             this.copyTexture3D (this.levelSetGrid.current, this.levelSetGrid.other, this.framebuffer)

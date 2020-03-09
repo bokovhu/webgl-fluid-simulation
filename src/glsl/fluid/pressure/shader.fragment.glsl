@@ -17,6 +17,8 @@ layout(location = 3) out vec4 out_layer4;
 
 in vec2 v_texCoords;
 
+const float MAX_PRESSURE = 200.0;
+
 float divergence (in vec3 coords) {
 
     float dx = texture(u_velocityGrid, coords + vec3(u_voxelStep.x, 0.0, 0.0)).x - texture(u_velocityGrid, coords - vec3(u_voxelStep.x, 0.0, 0.0)).x;
@@ -28,6 +30,11 @@ float divergence (in vec3 coords) {
 }
 
 vec4 computePressure (in vec3 coords) {
+/*
+    float level = texture(u_levelSetGrid, coords).x;
+    if (level > 30.0) {
+        return vec4(0.0);
+    }*/
 
     float div = divergence (coords);
 
@@ -60,7 +67,10 @@ vec4 computePressure (in vec3 coords) {
     float pFront = texture(u_originalPressureGrid, coords - stepZ).x;
     float pRear = texture(u_originalPressureGrid, coords + stepZ).x;
 
-    return vec4( (1.0 / 6.0) * ( pLeft + pRight + pTop + pBottom + pFront + pRear - div ) );
+    float pressure = (1.0 / 6.0) * ( pLeft + pRight + pTop + pBottom + pFront + pRear - div );
+    // pressure = clamp(pressure, -MAX_PRESSURE, MAX_PRESSURE);
+
+    return vec4( pressure );
 
 }
 

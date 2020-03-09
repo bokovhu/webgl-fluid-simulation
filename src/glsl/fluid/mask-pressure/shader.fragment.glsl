@@ -17,10 +17,10 @@ in vec2 v_texCoords;
 
 vec4 maskPressure (in vec3 coords) {
 
-    /*float level = texture(u_levelSetGrid, coords).x;
-    if (level > 0.2) {
+    float level = texture(u_levelSetGrid, coords).x;
+    if (level > 0.0) {
         return vec4(0.0);
-    }*/
+    }
 
     return texture(u_pressureGrid, coords);
 

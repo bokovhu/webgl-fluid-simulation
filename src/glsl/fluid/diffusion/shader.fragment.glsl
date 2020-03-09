@@ -10,470 +10,55 @@ layout(location = 3) out vec4 out_layer4;
 
 in vec2 v_texCoords;
 
-uniform float u_diffusionScale;
+uniform float u_viscosity;
 uniform sampler3D u_grid;
 uniform vec3 u_gridSize;
 uniform int u_layerOffset;
 uniform vec3 u_voxelStep;
 uniform float u_timestep;
 
-
 const float EPSILON = 0.0001;
-
-vec4 diffuseCorner (in vec3 coords) {
-
-    float a = u_timestep * u_diffusionScale;
-
-    vec4 v = texture(u_grid, coords);
-
-    if (coords.z < EPSILON) {
-        // Front layer
-        if (coords.y < EPSILON) {
-            // Top row
-            if (coords.x < EPSILON) {
-                // Top left corner
-                return v
-                    + a * ( 
-                        texture (u_grid, coords + vec3(u_voxelStep.x, 0.0, 0.0)) 
-                        + texture (u_grid, coords + vec3(0.0, u_voxelStep.y, 0.0))
-                        + texture (u_grid, coords + vec3(0.0, 0.0, u_voxelStep.z))
-                        - 3.0 * v
-                    );
-            } else if (abs(1.0 - coords.x) < EPSILON) {
-                // Top right corner
-                return v 
-                    + a * (
-                        texture (u_grid, coords - vec3(u_voxelStep.x, 0.0, 0.0))
-                        + texture (u_grid, coords + vec3(0.0, u_voxelStep.y, 0.0))
-                        + texture (u_grid, coords + vec3(0.0, 0.0, u_voxelStep.z))
-                        - 3.0 * v
-                    );
-            } else {
-                // This shouldn't be a corner
-                return v;
-            }
-        } else if (abs (1.0 - coords.y) < EPSILON) {
-            // Bottom row
-            if (coords.x < EPSILON) {
-                // Bottom left corner
-                return v
-                    + a * (
-                        texture (u_grid, coords + vec3(u_voxelStep.x, 0.0, 0.0))
-                        + texture (u_grid, coords - vec3(0.0, u_voxelStep.y, 0.0))
-                        + texture (u_grid, coords + vec3(0.0, 0.0, u_voxelStep.z))
-                        - 3.0 * v
-                    );
-            } else if (abs (1.0 - coords.x) < EPSILON) {
-                // Bottom right corner
-                return v
-                    + a * (
-                        texture (u_grid, coords - vec3(u_voxelStep.x, 0.0, 0.0))
-                        + texture (u_grid, coords - vec3(0.0, u_voxelStep.y, 0.0))
-                        + texture (u_grid, coords + vec3(0.0, 0.0, u_voxelStep.z))
-                        - 3.0 * v
-                    );
-            } else {
-                // This shouldn't be a corner
-                return v;
-            }
-        } else {
-            // This shouldn't be a corner
-            return v;
-        }
-    } else if (abs (1.0 - coords.z) < EPSILON) {
-        // Rear layer
-        if (coords.y < EPSILON) {
-            // Top row
-            if (coords.x < EPSILON) {
-                // Top left corner
-                return v
-                    + a * ( 
-                        texture (u_grid, coords + vec3(u_voxelStep.x, 0.0, 0.0)) 
-                        + texture (u_grid, coords + vec3(0.0, u_voxelStep.y, 0.0))
-                        + texture (u_grid, coords - vec3(0.0, 0.0, u_voxelStep.z))
-                        - 3.0 * v
-                    );
-            } else if (abs(1.0 - coords.x) < EPSILON) {
-                // Top right corner
-                return v 
-                    + a * (
-                        texture (u_grid, coords - vec3(u_voxelStep.x, 0.0, 0.0))
-                        + texture (u_grid, coords + vec3(0.0, u_voxelStep.y, 0.0))
-                        + texture (u_grid, coords - vec3(0.0, 0.0, u_voxelStep.z))
-                        - 3.0 * v
-                    );
-            } else {
-                // This shouldn't be a corner
-                return v;
-            }
-        } else if (abs (1.0 - coords.y) < EPSILON) {
-            // Bottom row
-            if (coords.x < EPSILON) {
-                // Bottom left corner
-                return v
-                    + a * (
-                        texture (u_grid, coords + vec3(u_voxelStep.x, 0.0, 0.0))
-                        + texture (u_grid, coords - vec3(0.0, u_voxelStep.y, 0.0))
-                        + texture (u_grid, coords - vec3(0.0, 0.0, u_voxelStep.z))
-                        - 3.0 * v
-                    );
-            } else if (abs (1.0 - coords.x) < EPSILON) {
-                // Bottom right corner
-                return v
-                    + a * (
-                        texture (u_grid, coords - vec3(u_voxelStep.x, 0.0, 0.0))
-                        + texture (u_grid, coords - vec3(0.0, u_voxelStep.y, 0.0))
-                        + texture (u_grid, coords - vec3(0.0, 0.0, u_voxelStep.z))
-                        - 3.0 * v
-                    );
-            } else {
-                // This shouldn't be a corner
-                return v;
-            }
-        } else {
-            // This shouldn't be a corner
-            return v;
-        }
-    } else {
-        // This shouldn't be a corner
-        return v;
-    }
-
-}
-
-vec4 diffuseEdge (in vec3 coords) {
-
-    float a = u_timestep * u_diffusionScale;
-
-    // With edges, (X,Y), (X,Z) or (Y,Z) are constants
-    vec4 v = texture (u_grid, coords);
-
-    if (coords.z < EPSILON) {
-        // Edge in the front layer
-        if (coords.y < EPSILON) {
-            // Top row edge
-            return v
-                + a * (
-                    texture (u_grid, coords + vec3(u_voxelStep.x, 0.0, 0.0))
-                    + texture (u_grid, coords - vec3(u_voxelStep.x, 0.0, 0.0))
-                    + texture (u_grid, coords + vec3(0.0, u_voxelStep.y, 0.0))
-                    + texture (u_grid, coords + vec3(0.0, 0.0, u_voxelStep.z))
-                    - 4.0 * v
-                );
-        } else if (abs (1.0 - coords.y) < EPSILON) {
-            // Bottom row edge
-            return v
-                + a * (
-                    texture (u_grid, coords + vec3(u_voxelStep.x, 0.0, 0.0))
-                    + texture (u_grid, coords - vec3(u_voxelStep.x, 0.0, 0.0))
-                    + texture (u_grid, coords - vec3(0.0, u_voxelStep.y, 0.0))
-                    + texture (u_grid, coords + vec3(0.0, 0.0, u_voxelStep.z))
-                    - 4.0 * v
-                );
-        } else {
-            // Not a (Y,Z) edge
-            if (coords.x < EPSILON) {
-                // Left edge
-                return v
-                    + a * (
-                        texture (u_grid, coords + vec3(u_voxelStep.x, 0.0, 0.0))
-                        + texture (u_grid, coords + vec3(0.0, u_voxelStep.y, 0.0))
-                        + texture (u_grid, coords - vec3(0.0, u_voxelStep.y, 0.0))
-                        + texture (u_grid, coords + vec3(0.0, 0.0, u_voxelStep.z))
-                        - 4.0 * v
-                    );
-            } else if (abs (1.0 - coords.x) < EPSILON) {
-                // Right edge
-                return v
-                    + a * (
-                        texture (u_grid, coords - vec3(u_voxelStep.x, 0.0, 0.0))
-                        + texture (u_grid, coords + vec3(0.0, u_voxelStep.y, 0.0))
-                        + texture (u_grid, coords - vec3(0.0, u_voxelStep.y, 0.0))
-                        + texture (u_grid, coords + vec3(0.0, 0.0, u_voxelStep.z))
-                        - 4.0 * v
-                    );
-            } else {
-                // Shouldn't be a possible edge
-                return v;
-            }
-        }
-    } else if (abs(1.0 - coords.z) < EPSILON) {
-        // Edge in the rear layer
-        if (coords.y < EPSILON) {
-            // Top row edge
-            return v
-                + a * (
-                    texture (u_grid, coords + vec3(u_voxelStep.x, 0.0, 0.0))
-                    + texture (u_grid, coords - vec3(u_voxelStep.x, 0.0, 0.0))
-                    + texture (u_grid, coords + vec3(0.0, u_voxelStep.y, 0.0))
-                    + texture (u_grid, coords - vec3(0.0, 0.0, u_voxelStep.z))
-                    - 4.0 * v
-                );
-        } else if (abs (1.0 - coords.y) < EPSILON) {
-            // Bottom row edge
-            return v
-                + a * (
-                    texture (u_grid, coords + vec3(u_voxelStep.x, 0.0, 0.0))
-                    + texture (u_grid, coords - vec3(u_voxelStep.x, 0.0, 0.0))
-                    + texture (u_grid, coords - vec3(0.0, u_voxelStep.y, 0.0))
-                    + texture (u_grid, coords - vec3(0.0, 0.0, u_voxelStep.z))
-                    - 4.0 * v
-                );
-        } else {
-            // Not a (Y,Z) edge
-            if (coords.x < EPSILON) {
-                // Left edge
-                return v
-                    + a * (
-                        texture (u_grid, coords + vec3(u_voxelStep.x, 0.0, 0.0))
-                        + texture (u_grid, coords + vec3(0.0, u_voxelStep.y, 0.0))
-                        + texture (u_grid, coords - vec3(0.0, u_voxelStep.y, 0.0))
-                        + texture (u_grid, coords - vec3(0.0, 0.0, u_voxelStep.z))
-                        - 4.0 * v
-                    );
-            } else if (abs (1.0 - coords.x) < EPSILON) {
-                // Right edge
-                return v
-                    + a * (
-                        texture (u_grid, coords - vec3(u_voxelStep.x, 0.0, 0.0))
-                        + texture (u_grid, coords + vec3(0.0, u_voxelStep.y, 0.0))
-                        + texture (u_grid, coords - vec3(0.0, u_voxelStep.y, 0.0))
-                        + texture (u_grid, coords - vec3(0.0, 0.0, u_voxelStep.z))
-                        - 4.0 * v
-                    );
-            } else {
-                // Shouldn't be a possible edge
-                return v;
-            }
-        }
-    } else {
-        // It's an (X,Y) edge
-        if (coords.x < EPSILON) {
-            // Left side of the cube
-            if (coords.y < EPSILON) {
-                // Top left edge from front to back
-                return v
-                    + a * (
-                        texture (u_grid, coords + vec3(u_voxelStep.x, 0.0, 0.0))
-                        + texture (u_grid, coords + vec3(0.0, u_voxelStep.y, 0.0))
-                        + texture (u_grid, coords + vec3(0.0, 0.0, u_voxelStep.z))
-                        + texture (u_grid, coords - vec3(0.0, 0.0, u_voxelStep.z))
-                        - 4.0 * v
-                    );
-            } else if (abs(1.0 - coords.y) < EPSILON) {
-                // Bottom left edge from front to back
-                return v
-                    + a * (
-                        texture (u_grid, coords + vec3(u_voxelStep.x, 0.0, 0.0))
-                        + texture (u_grid, coords - vec3(0.0, u_voxelStep.y, 0.0))
-                        + texture (u_grid, coords + vec3(0.0, 0.0, u_voxelStep.z))
-                        + texture (u_grid, coords - vec3(0.0, 0.0, u_voxelStep.z))
-                        - 4.0 * v
-                    );
-            } else {
-                // Shouldn't be a possible edge
-                return v;
-            }
-        } else if (abs(1.0 - coords.x) < EPSILON) {
-            // Right side of the cube
-            if (coords.y < EPSILON) {
-                // Top right edge from front to back
-                return v
-                    + a * (
-                        texture (u_grid, coords - vec3(u_voxelStep.x, 0.0, 0.0))
-                        + texture (u_grid, coords + vec3(0.0, u_voxelStep.y, 0.0))
-                        + texture (u_grid, coords + vec3(0.0, 0.0, u_voxelStep.z))
-                        + texture (u_grid, coords - vec3(0.0, 0.0, u_voxelStep.z))
-                        - 4.0 * v
-                    );
-            } else if (abs(1.0 - coords.y) < EPSILON) {
-                // Bottom right edge from front to back
-                return v
-                    + a * (
-                        texture (u_grid, coords - vec3(u_voxelStep.x, 0.0, 0.0))
-                        + texture (u_grid, coords - vec3(0.0, u_voxelStep.y, 0.0))
-                        + texture (u_grid, coords + vec3(0.0, 0.0, u_voxelStep.z))
-                        + texture (u_grid, coords - vec3(0.0, 0.0, u_voxelStep.z))
-                        - 4.0 * v
-                    );
-            } else {
-                // Shouldn't be a possible edge
-                return v;
-            }
-        } else {
-            // Shouldn't be a possible edge
-            return v;
-        }
-    }
-
-}
-
-vec4 diffuseXYPlane (in vec3 coords) {
-
-    float a = u_timestep * u_diffusionScale;
-
-    // XY Plane --> Z = constant
-    vec4 v = texture (u_grid, coords);
-
-    if (coords.z < EPSILON) {
-        // Front XY plane
-        return v 
-            + a * (
-                texture (u_grid, coords + vec3(u_voxelStep.x, 0.0, 0.0))
-                + texture (u_grid, coords - vec3(u_voxelStep.x, 0.0, 0.0))
-                + texture (u_grid, coords + vec3(0.0, u_voxelStep.y, 0.0))
-                + texture (u_grid, coords - vec3(0.0, u_voxelStep.y, 0.0))
-                + texture (u_grid, coords + vec3(0.0, 0.0, u_voxelStep.z))
-                - 5.0 * v
-            );
-    } else if (abs (1.0 - coords.z) < EPSILON) {
-        // Rear XY plane
-        return v
-            + a * (
-                texture (u_grid, coords + vec3(u_voxelStep.x, 0.0, 0.0))
-                + texture (u_grid, coords - vec3(u_voxelStep.x, 0.0, 0.0))
-                + texture (u_grid, coords + vec3(0.0, u_voxelStep.y, 0.0))
-                + texture (u_grid, coords - vec3(0.0, u_voxelStep.y, 0.0))
-                + texture (u_grid, coords - vec3(0.0, 0.0, u_voxelStep.z))
-                - 5.0 * v
-            );
-    } else {
-        // This isn't an edge-case XY plane
-        return v;
-    }
-
-}
-
-vec4 diffuseZXPlane (in vec3 coords) {
-
-    float a = u_timestep * u_diffusionScale;
-
-    // ZX plane --> Y = constant
-    vec4 v = texture (u_grid, coords);
-
-    if (coords.y < EPSILON) {
-        // Top ZX plane
-        return v
-            + a * (
-                texture (u_grid, coords + vec3(u_voxelStep.x, 0.0, 0.0))
-                + texture (u_grid, coords - vec3(u_voxelStep.x, 0.0, 0.0))
-                + texture (u_grid, coords + vec3(0.0, 0.0, u_voxelStep.z))
-                + texture (u_grid, coords - vec3(0.0, 0.0, u_voxelStep.z))
-                + texture (u_grid, coords + vec3(0.0, u_voxelStep.y, 0.0))
-                - 5.0 * v
-            );
-    } else if (abs(1.0 - coords.y) < EPSILON) {
-        // Bottom ZX plane
-        return v
-            + a * (
-                texture (u_grid, coords + vec3(u_voxelStep.x, 0.0, 0.0))
-                + texture (u_grid, coords - vec3(u_voxelStep.x, 0.0, 0.0))
-                + texture (u_grid, coords + vec3(0.0, 0.0, u_voxelStep.z))
-                + texture (u_grid, coords - vec3(0.0, 0.0, u_voxelStep.z))
-                + texture (u_grid, coords - vec3(0.0, u_voxelStep.y, 0.0))
-                - 5.0 * v
-            );
-    } else {
-        // This isn't an edge-case ZX plane
-        return v;
-    }
-
-}
-
-vec4 diffuseYZPlane (in vec3 coords) {
-
-    float a = u_timestep * u_diffusionScale;
-
-    // YZ plane --> X = constant
-    vec4 v = texture (u_grid, coords);
-
-    if (coords.x < EPSILON) {
-        // Left YZ plane
-        return v
-            + a * (
-                texture (u_grid, coords + vec3(u_voxelStep.x, 0.0, 0.0))
-                + texture (u_grid, coords + vec3(0.0, u_voxelStep.y, 0.0))
-                + texture (u_grid, coords - vec3(0.0, u_voxelStep.y, 0.0))
-                + texture (u_grid, coords + vec3(0.0, 0.0, u_voxelStep.z))
-                + texture (u_grid, coords - vec3(0.0, 0.0, u_voxelStep.z))
-                - 5.0 * v
-            );
-    } else if (abs(1.0 - coords.x) < EPSILON) {
-        // Right YZ plane
-        return v
-            + a * (
-                texture (u_grid, coords - vec3(u_voxelStep.x, 0.0, 0.0))
-                + texture (u_grid, coords + vec3(0.0, u_voxelStep.y, 0.0))
-                + texture (u_grid, coords - vec3(0.0, u_voxelStep.y, 0.0))
-                + texture (u_grid, coords + vec3(0.0, 0.0, u_voxelStep.z))
-                + texture (u_grid, coords - vec3(0.0, 0.0, u_voxelStep.z))
-                - 5.0 * v
-            );
-    } else {
-        // This isn't an edge-case ZX plane
-        return v;
-    }
-
-}
-
-vec4 diffuseInside (in vec3 coords) {
-    
-    float a = u_timestep * u_diffusionScale;
-
-    // YZ plane --> X = constant
-    vec4 v = texture (u_grid, coords);
-
-    return v
-        + a * (
-            texture (u_grid, coords + vec3(u_voxelStep.x, 0.0, 0.0))
-            + texture (u_grid, coords - vec3(u_voxelStep.x, 0.0, 0.0))
-            + texture (u_grid, coords + vec3(0.0, u_voxelStep.y, 0.0))
-            + texture (u_grid, coords - vec3(0.0, u_voxelStep.y, 0.0))
-            + texture (u_grid, coords + vec3(0.0, 0.0, u_voxelStep.z))
-            + texture (u_grid, coords - vec3(0.0, 0.0, u_voxelStep.z))
-            - 6.0 * v
-        );
-
-}
-
-int numEdgeCaseCoords (in vec3 coords) {
-    int n = 0;
-    n = n + ((coords.x < EPSILON || abs(1.0 - coords.x) < EPSILON) ? 1 : 0);
-    n = n + ((coords.y < EPSILON || abs(1.0 - coords.y) < EPSILON) ? 1 : 0);
-    n = n + ((coords.z < EPSILON || abs(1.0 - coords.z) < EPSILON) ? 1 : 0);
-    return n;
-}
 
 vec4 diffuse (
     in vec3 coords
 ) {
 
-    int n = numEdgeCaseCoords (coords);
-    if (n == 0) {
-        // Simple, "inside everything" diffusion
-        return diffuseInside (coords);
-    } else if (n == 1) {
-        // Edge plane
-        if (coords.x < EPSILON || abs(1.0 - coords.x) < EPSILON) {
-            return diffuseYZPlane (coords);
-        } else if (coords.y < EPSILON || abs(1.0 - coords.y) < EPSILON) {
-            return diffuseZXPlane (coords);
-        } else if (coords.z < EPSILON || abs(1.0 - coords.z) < EPSILON) {
-            return diffuseXYPlane (coords);
-        } else {
-            // Don't know about this
-            return texture (u_grid, coords);
-        }
-    } else if (n == 2) {
-        // It's an edge
-        return diffuseEdge (coords);
-    } else if (n == 3) {
-        // It's a corner
-        return diffuseCorner (coords);
-    } else {
-        // Don't know about this
-        return texture (u_grid, coords);
+    vec3 stepX = vec3(1.0 / u_gridSize.x, 0.0, 0.0);
+    vec3 stepY = vec3(0.0, 1.0 / u_gridSize.y, 0.0);
+    vec3 stepZ = vec3(0.0, 0.0, 1.0 / u_gridSize.z);
+
+    if (abs(coords.x) <= stepX.x) {
+        return texture(u_grid, coords);
+    } else if (abs(1.0 - coords.x) <= stepX.x) {
+        return texture(u_grid, coords);
     }
+
+    if (abs(coords.y) <= stepY.y) {
+        return texture(u_grid, coords);
+    } else if (abs(1.0 - coords.y) <= stepY.y) {
+        return texture(u_grid, coords);
+    }
+
+    if (abs(coords.z) <= stepZ.z) {
+        return texture(u_grid, coords);
+    } else if (abs(1.0 - coords.z) <= stepZ.z) {
+        return texture(u_grid, coords);
+    }
+
+    vec3 velLeft = texture(u_grid, coords - stepX).xyz;
+    vec3 velRight = texture(u_grid, coords + stepX).xyz;
+    vec3 velTop = texture(u_grid, coords - stepY).xyz;
+    vec3 velBottom = texture(u_grid, coords + stepY).xyz;
+    vec3 velFront = texture(u_grid, coords - stepZ).xyz;
+    vec3 velRear = texture(u_grid, coords + stepZ).xyz;
+
+    vec3 vel = texture(u_grid, coords).xyz;
+
+    float alpha = 1.0 / (u_viscosity * u_timestep);
+    float beta = 1.0 / (6.0 + alpha);
+
+    vec3 newVelocity = (velLeft + velRight + velBottom + velTop + velFront + velRear + alpha * vel) * beta;
+    return vec4(newVelocity, 0.0);
 
 }
 
