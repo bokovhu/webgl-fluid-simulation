@@ -1,12 +1,13 @@
-import './main.css';
+import "./main.css";
 
-import BlinnPhong from './rendering/shader/blinnPhongShader';
-import GameGUI from './gui/gui';
-import { mat4, vec2, vec3 } from 'gl-matrix';
-import GPUMarcher from './marching-cubes/gpuMarcher';
-import AnimatedGrid from './marching-cubes/grid';
-import FluidSimulation from './fluid/fluidSimulation';
-import Grid from './marching-cubes/grid';
+import BlinnPhong from "./rendering/shader/blinnPhongShader";
+import GameGUI from "./gui/gui";
+import { mat4, vec2, vec3 } from "gl-matrix";
+import GPUMarcher from "./marching-cubes/gpuMarcher";
+import AnimatedGrid from "./marching-cubes/grid";
+import FluidSimulation from "./fluid/fluidSimulation";
+import Grid from "./marching-cubes/grid";
+import FluidDebugger from "./fluid/fluidDebugger";
 
 export default class Main {
     private gui: GameGUI;
@@ -28,6 +29,7 @@ export default class Main {
     private gridCenter: vec3 = vec3.create();
     private modelMatrix: mat4 = mat4.create();
     public fluidSimulation: FluidSimulation;
+    private fluidDebugger: FluidDebugger;
 
     constructor() {}
 
@@ -37,22 +39,22 @@ export default class Main {
     }
 
     createWebGLContext() {
-        this.canvas = document.getElementById('canvas') as HTMLCanvasElement;
-        this.gl = this.canvas.getContext('webgl2');
+        this.canvas = document.getElementById("canvas") as HTMLCanvasElement;
+        this.gl = this.canvas.getContext("webgl2");
         if (this.gl == null) {
-            throw new Error('Could not get WebGL 2 rendering context!');
+            throw new Error("Could not get WebGL 2 rendering context!");
         }
     }
 
     initGLObjects() {
         // This extension is required to allow float type textures as color attachments
         // for framebuffer objects
-        this.gl.getExtension('EXT_color_buffer_float');
+        this.gl.getExtension("EXT_color_buffer_float");
 
         // This extension is required to allow LINEAR filtering for float type textures
-        this.gl.getExtension('OES_texture_float_linear');
+        this.gl.getExtension("OES_texture_float_linear");
 
-        this.gl.getExtension('OES_texture_half_float_linear');
+        this.gl.getExtension("OES_texture_half_float_linear");
 
         this.initFluidSimulation();
 
@@ -71,11 +73,25 @@ export default class Main {
             texture: null
         };
 
-        this.fluidSimulation = new FluidSimulation(this.gl, this.grid, 1.0 / 60.0);
+        this.fluidSimulation = new FluidSimulation(
+            this.gl,
+            this.grid,
+            1.0 / 60.0
+        );
         this.grid.texture = this.fluidSimulation.pressureGridTexture;
 
         this.gpuMarcher = new GPUMarcher(this.gl);
         this.gpuMarcher.setup(this.grid);
+
+        this.fluidDebugger = new FluidDebugger(this.gl);
+        this.fluidDebugger.setup(
+            [this.grid.xSize, this.grid.ySize, this.grid.zSize],
+            [
+                this.grid.xSize * this.grid.xScale,
+                this.grid.ySize * this.grid.yScale,
+                this.grid.zSize * this.grid.zScale
+            ]
+        );
 
         this.resetSimulationState();
     }
@@ -90,7 +106,8 @@ export default class Main {
                     let pos = vec3.fromValues(x / 128.0, y / 128.0, z / 128.0);
                     vec3.scale(pos, pos, 32.0);
                     vec3.sub(pos, pos, vec3.fromValues(16.0, 16.0, 16.0));
-                    let val = vec3.dist(pos, vec3.fromValues(0.0, 0.0, 0.0)) - 8.0;
+                    let val =
+                        vec3.dist(pos, vec3.fromValues(0.0, 0.0, 0.0)) - 8.0;
                     fb[ptr++] = val;
                 }
             }
@@ -106,11 +123,7 @@ export default class Main {
             for (let y = 0; y < 128; y++) {
                 for (let x = 0; x < 128; x++) {
                     let pos = vec3.fromValues(x / 128.0, y / 128.0, z / 128.0);
-                    let vel = vec3.fromValues(
-                        0.1 * Math.random () - 0.05,
-                        0.1 * Math.random () - 0.05,
-                        0.1 * Math.random () - 0.05
-                    );
+                    let vel = vec3.fromValues(0, 0, 0);
                     fb[ptr++] = vel[0];
                     fb[ptr++] = vel[1];
                     fb[ptr++] = vel[2];
@@ -138,7 +151,7 @@ export default class Main {
             orbitHeight: 6.0
         };
         this.light = {
-            type: 'directional',
+            type: "directional",
             direction: vec3.fromValues(-0.5, -0.8, -0.3),
             position: vec3.fromValues(0.0, 0.0, 0.0),
             intensity: vec3.fromValues(1.0, 0.78, 0.42),
@@ -147,8 +160,8 @@ export default class Main {
         vec3.normalize(this.light.direction, this.light.direction);
 
         this.material = {
-            diffuse: [ 1.0, 0.2, 0.2 ],
-            specular: [ 0.5, 0.5, 0.5 ],
+            diffuse: [1.0, 0.2, 0.2],
+            specular: [0.5, 0.5, 0.5],
             shininess: 32.0
         };
 
@@ -181,7 +194,13 @@ export default class Main {
 
         this.gl.viewport(0, 0, this.gl.canvas.width, this.gl.canvas.height);
 
-        mat4.perspective(this.camera.projection, 3.141592653 / 3.0, this.aspectRatio, 0.01, 100.0);
+        mat4.perspective(
+            this.camera.projection,
+            3.141592653 / 3.0,
+            this.aspectRatio,
+            0.01,
+            100.0
+        );
     }
 
     onAnimationFrame() {
@@ -210,30 +229,50 @@ export default class Main {
             0.5 * (this.grid.zSize * this.grid.zScale)
         );
 
-        vec3.set(this.camera.position, this.gridCenter[0], this.camera.orbitHeight, this.gridCenter[2]);
+        vec3.set(
+            this.camera.position,
+            this.gridCenter[0],
+            this.camera.orbitHeight,
+            this.gridCenter[2]
+        );
         vec3.add(this.camera.position, this.camera.position, [
-            Math.cos(this.appTime * this.camera.orbitSpeed) * this.camera.orbitRadius,
+            Math.cos(this.appTime * this.camera.orbitSpeed) *
+                this.camera.orbitRadius,
             0.0,
-            Math.sin(this.appTime * this.camera.orbitSpeed) * this.camera.orbitRadius
+            Math.sin(this.appTime * this.camera.orbitSpeed) *
+                this.camera.orbitRadius
         ]);
 
-        mat4.lookAt(this.camera.view, this.camera.position, this.gridCenter, [ 0, 1, 0 ]);
+        mat4.lookAt(this.camera.view, this.camera.position, this.gridCenter, [
+            0,
+            1,
+            0
+        ]);
         mat4.identity(this.modelMatrix);
 
         this.fluidSimulation.update(this.delta);
 
         this.grid.texture = this.fluidSimulation.levelSetTexture;
+
         this.gpuMarcher.draw(
-            (bp) => {
+            bp => {
                 bp.setCamera(this.camera);
                 bp.setLight(this.light);
                 bp.setMaterial(this.material);
                 bp.setModel(this.modelMatrix);
             },
             this.grid,
-            [ this.resolution[0], this.resolution[1] ],
-            0.0,
+            [this.resolution[0], this.resolution[1]],
+            -0.05,
             this.grid.texture
         );
+
+        /*
+        this.fluidDebugger.draw (
+            this.camera.projection,
+            this.camera.view,
+            this.fluidSimulation.pressureGridTexture
+        );
+        */
     }
 }

@@ -4,11 +4,9 @@ precision highp float;
 precision highp sampler3D;
 
 uniform sampler3D u_velocityGrid;
-uniform sampler3D u_scalarGrid;
 uniform vec3 u_textureResolution;
 uniform int u_layerOffset;
 uniform float u_timestep;
-uniform float u_advectionScale;
 
 layout(location = 0) out vec4 out_layer1;
 layout(location = 1) out vec4 out_layer2;
@@ -19,22 +17,33 @@ in vec2 v_texCoords;
 
 vec4 advect (in vec3 coords) {
 
+    vec3 stepX = vec3(1.0 / u_textureResolution.x, 0.0, 0.0);
+    vec3 stepY = vec3(0.0, 1.0 / u_textureResolution.y, 0.0);
+    vec3 stepZ = vec3(0.0, 0.0, 1.0 / u_textureResolution.z);
+
+    if (abs(coords.x) <= stepX.x) {
+        return -2.0 * texture(u_velocityGrid, coords + stepX);
+    } else if (abs (1.0 - coords.x) <= stepX.x + 0.01) {
+        return -2.0 * texture(u_velocityGrid, coords - stepX);
+    }
+
+    if (abs(coords.y) <= stepY.y) {
+        return -2.0 * texture(u_velocityGrid, coords + stepY);
+    } else if (abs(1.0 - coords.y) <= stepY.y + 0.01) {
+        return -2.0 * texture(u_velocityGrid, coords - stepY);
+    }
+
+    if (abs(coords.z) <= stepZ.z) {
+        return -2.0 * texture(u_velocityGrid, coords + stepZ);
+    } else if (abs(1.0 - coords.z) <= stepZ.z) {
+        return -2.0 * texture(u_velocityGrid, coords - stepZ);
+    }
+
     vec3 p = (coords * u_textureResolution) 
         - texture (u_velocityGrid, coords).xyz * u_timestep;
     p = p / u_textureResolution;
 
-    if (p.x < 0.0) p.x = -1.0 * p.x;
-    if (p.x > 1.0) p.x = 1.0 - (p.x - 1.0);
-    if (p.y < 0.0) p.y = -1.0 * p.y;
-    if (p.y > 1.0) p.y = 1.0 - (p.y - 1.0);
-    if (p.z < 0.0) p.z = -1.0 * p.z;
-    if (p.z > 1.0) p.z = 1.0 - (p.z - 1.0);
-
-    /* if (abs(v.x) <= 0.001 || abs(1.0 - v.x) <= 0.001 || abs(v.y) <= 0.001 || abs(1.0 - v.y) <= 0.001 || abs(v.z) <= 0.001 || abs(1.0 - v.z) <= 0.001) {
-        return vec4(0.0);
-    } */
-
-    return vec4(texture (u_scalarGrid, p));
+    return vec4(texture (u_velocityGrid, p));
 
 }
 

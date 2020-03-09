@@ -31,27 +31,44 @@ vec4 computePressure (in vec3 coords) {
 
     float div = divergence (coords);
 
-    // float p = texture(u_originalPressureGrid, coords);
+    vec3 stepX = vec3(1.0 / u_textureResolution.x, 0.0, 0.0);
+    vec3 stepY = vec3(0.0, 1.0 / u_textureResolution.y, 0.0);
+    vec3 stepZ = vec3(0.0, 0.0, 1.0 / u_textureResolution.z);
 
-    float pLeft = texture(u_originalPressureGrid, coords - vec3(u_voxelStep.x, 0.0, 0.0)).x;
-    float pRight = texture(u_originalPressureGrid, coords + vec3(u_voxelStep.x, 0.0, 0.0)).x;
-    float pTop = texture(u_originalPressureGrid, coords - vec3(0.0, u_voxelStep.y, 0.0)).x;
-    float pBottom = texture(u_originalPressureGrid, coords + vec3(0.0, u_voxelStep.y, 0.0)).x;
-    float pFront = texture(u_originalPressureGrid, coords - vec3(0.0, 0.0, u_voxelStep.z)).x;
-    float pRear = texture(u_originalPressureGrid, coords + vec3(0.0. 0.0, u_voxelStep.z)).x;
+    if (abs(coords.x) <= stepX.x) {
+        return texture(u_originalPressureGrid, coords + stepX);
+    } else if (abs (1.0 - coords.x) <= stepX.x) {
+        return texture(u_originalPressureGrid, coords - stepX);
+    }
 
-    // TODO: Boundary and obstacle cell handling
-    //       corresponding pressure values should be set to p
+    if (abs(coords.y) <= stepY.y) {
+        return texture(u_originalPressureGrid, coords + stepY);
+    } else if (abs(1.0 - coords.y) <= stepY.y) {
+        return texture(u_originalPressureGrid, coords - stepY);
+    }
 
-    return (1.0 / 6.0) * ( pLeft + pRight + pTop + pBottom + pFront + pRear - div );
+    if (abs(coords.z) <= stepZ.z) {
+        return texture(u_originalPressureGrid, coords + stepZ);
+    } else if (abs(1.0 - coords.z) <= stepZ.z) {
+        return texture(u_originalPressureGrid, coords - stepZ);
+    }
+
+    float pLeft = texture(u_originalPressureGrid, coords - stepX).x;
+    float pRight = texture(u_originalPressureGrid, coords + stepX).x;
+    float pTop = texture(u_originalPressureGrid, coords - stepY).x;
+    float pBottom = texture(u_originalPressureGrid, coords + stepY).x;
+    float pFront = texture(u_originalPressureGrid, coords - stepZ).x;
+    float pRear = texture(u_originalPressureGrid, coords + stepZ).x;
+
+    return vec4( (1.0 / 6.0) * ( pLeft + pRight + pTop + pBottom + pFront + pRear - div ) );
 
 }
 
 void main () {
 
-    out_layer1 = computePressure(vec3 (v_texCoords.x, v_texCoords.y, (float(u_layerOffset) + 0.0) / u_textureResolution.z));
-    out_layer2 = computePressure(vec3 (v_texCoords.x, v_texCoords.y, (float(u_layerOffset) + 1.0) / u_textureResolution.z));
-    out_layer3 = computePressure(vec3 (v_texCoords.x, v_texCoords.y, (float(u_layerOffset) + 2.0) / u_textureResolution.z));
-    out_layer4 = computePressure(vec3 (v_texCoords.x, v_texCoords.y, (float(u_layerOffset) + 3.0) / u_textureResolution.z));
+    out_layer1 = computePressure(vec3 (v_texCoords.x, v_texCoords.y, (float(u_layerOffset) + 0.5) / u_textureResolution.z));
+    out_layer2 = computePressure(vec3 (v_texCoords.x, v_texCoords.y, (float(u_layerOffset) + 1.5) / u_textureResolution.z));
+    out_layer3 = computePressure(vec3 (v_texCoords.x, v_texCoords.y, (float(u_layerOffset) + 2.5) / u_textureResolution.z));
+    out_layer4 = computePressure(vec3 (v_texCoords.x, v_texCoords.y, (float(u_layerOffset) + 3.5) / u_textureResolution.z));
 
 }
